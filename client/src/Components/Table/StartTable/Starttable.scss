@@ -1,0 +1,59 @@
+.StartTable-container {
+    margin-top: 3.8rem;
+    display: flex;
+    flex-direction: row;
+    background-color: #f5f5f5;
+    min-height: 100vh;
+  }
+  .sidebar.collapsed ~ .StartTable-content {
+    margin-left: 75px;
+    margin-right: 10px;
+  }
+  .StartTable-content {
+    flex: 1;
+    padding: 20px;
+    margin-right: 10px;
+    margin-left: 250px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: margin-left 0.3s ease-in-out;
+  }
+  
+  .StartTableheader {
+    
+    margin-bottom: 20px;
+    h1 {
+      font-size: 24px;
+      color: #333;
+      margin: 0;
+    }
+  }
+  
+  h1 {
+    margin-bottom: 20px;
+  }
+  
+  .start-table-form {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  label {
+    margin-bottom: 10px;
+  }
+  
+  input {
+    margin-bottom: 20px;
+    padding: 8px;
+    font-size: 16px;
+  }
+  
+  .start-table-button {
+    padding: 10px 20px;
+    background-color: #4caf50;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
