@@ -13,6 +13,8 @@ const port = 3002;
 app.use(cors());
 app.use(bodyParser.json());
 app.use('/uploads/recipes', express.static('uploads/recipes'));
+// ✅ อนุญาตให้เข้าถึงไฟล์ใน `uploads/Userprofile/`
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // ✅ ตั้งค่า Multer สำหรับอัปโหลดไฟล์
 const storage = multer.diskStorage({

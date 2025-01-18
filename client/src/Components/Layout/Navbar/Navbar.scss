@@ -27,6 +27,11 @@
       align-items: center;
       position: relative;
 
+      .profile-pic{
+        width: 30px;
+        height:  30px;
+        border-radius: 50%;
+      }
       .user-name {
         color: #fff;
         margin-left: 5px;
