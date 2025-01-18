@@ -1,14 +1,13 @@
 const express = require("express");
-const mysql = require("mysql2/promise");
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const multer = require("multer");
 const path = require("path");
+const db = require("./config/db.js"); // ✅ ใช้ db จาก config/db.js
+const userRoutes = require("./routes/userRoutes"); // ✅ เชื่อม userRoutes.js
 
 const app = express();
 const port = 3002;
-
-
 
 // ✅ Middleware
 app.use(cors());
@@ -22,32 +21,24 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// ✅ ตั้งค่า MySQL Database Connection
-const db = mysql.createPool({
-  host: "localhost",
-  user: "root",
-  password: "",
-  database: "maw_db",
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
-});
-
-
 // ✅ ฟังก์ชันสำหรับ Query Database
 const queryDB = async (sql, params = []) => {
+  let connection;
   try {
-    const connection = await db.getConnection();
+    connection = await db.getConnection(); // ✅ ใช้ getConnection() อย่างถูกต้อง
     const [rows] = await connection.query(sql, params);
-    connection.release();
     return rows;
   } catch (error) {
-    console.error("Database query error:", error);
+    console.error("❌ Database query error:", error);
     throw error;
+  } finally {
+    if (connection) connection.release(); // ✅ ต้อง release connection
   }
 };
 
-app.use('/uploads/recipes', express.static('uploads/recipes'));
+
+// ✅ API Routes
+app.use("/api/users", userRoutes);
 
 // Routes
 

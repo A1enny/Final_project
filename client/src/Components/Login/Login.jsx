@@ -4,54 +4,59 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Axios from "axios";
 import Logo from "../../assets/Logo.png";
-import { FaUserShield } from "react-icons/fa";
-import { FaKey } from "react-icons/fa";
+import { FaUserShield, FaKey } from "react-icons/fa";
 import { AiOutlineSwapRight } from "react-icons/ai";
 
 const Login = () => {
   const [loginUserName, setLoginUserName] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false); // สำหรับแสดงสถานะการโหลด
-  const navigateTo = useNavigate(); // ใช้ navigate เพื่อเปลี่ยนหน้า
+  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
   const loginUser = async (event) => {
-    event.preventDefault(); // ป้องกันการรีเฟรชหน้า
+    event.preventDefault();
 
-    // Validation เบื้องต้น
     if (!loginUserName || !loginPassword) {
-      alert("กรุณากรอกชื่อผู้ใช้และรหัสผ่าน");
+      alert("❌ กรุณากรอกชื่อผู้ใช้และรหัสผ่าน");
       return;
     }
 
     try {
-      setIsLoading(true); // เริ่มแสดงสถานะโหลด
+      setIsLoading(true);
+
       const response = await Axios.post("http://localhost:3002/api/login", {
-        username: loginUserName, // แก้ไขชื่อฟิลด์ให้ตรงกับ backend
-        password: loginPassword, // แก้ไขชื่อฟิลด์ให้ตรงกับ backend
+        username: loginUserName,
+        password: loginPassword,
       });
 
       if (response.status === 200 && response.data.user) {
-        // หาก Login สำเร็จ และมีข้อมูลผู้ใช้
-        alert(response.data.message); // แสดงข้อความ "Login successful"
-        localStorage.setItem("username", response.data.user.username); // บันทึกชื่อผู้ใช้ลง Local Storage
-        navigateTo("/dashboard"); // เปลี่ยนหน้าไปยัง /dashboard
+        // บันทึกข้อมูลผู้ใช้ลง LocalStorage และ SessionStorage
+        localStorage.setItem("user_id", response.data.user.id);
+        localStorage.setItem("username", response.data.user.username);
+        sessionStorage.setItem("isLoggedIn", "true");
+
+        alert("✅ เข้าสู่ระบบสำเร็จ!");
+        navigate("/dashboard"); // เปลี่ยนไปหน้าตั้งค่าโปรไฟล์
       } else {
-        alert("ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
+        alert("❌ ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
       }
     } catch (error) {
-      if (error.response && error.response.status === 401) {
-        alert("ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
-      } else if (error.response && error.response.status === 404) {
-        alert("ไม่พบ API endpoint โปรดตรวจสอบ URL");
+      console.error("Login error:", error);
+      if (error.response) {
+        if (error.response.status === 401) {
+          alert("❌ ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
+        } else if (error.response.status === 404) {
+          alert("⚠️ ไม่พบ API โปรดตรวจสอบ URL");
+        } else {
+          alert("🚨 เกิดข้อผิดพลาดในการเข้าสู่ระบบ");
+        }
       } else {
-        console.error("Error logging in:", error);
-        alert("เกิดข้อผิดพลาดในการเข้าสู่ระบบ");
+        alert("⚠️ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์");
       }
     } finally {
-      setIsLoading(false); // ซ่อนสถานะโหลด
+      setIsLoading(false);
     }
   };
-
   return (
     <div className="loginPage flex">
       <div className="logoContainer">
@@ -94,7 +99,7 @@ const Login = () => {
             </div>
             <button type="submit" className="btn flex" disabled={isLoading}>
               {isLoading ? (
-                <span>กำลังเข้าสู่ระบบ...</span>
+                <span>🔄 กำลังเข้าสู่ระบบ...</span>
               ) : (
                 <>
                   <span>เข้าสู่ระบบ</span>
