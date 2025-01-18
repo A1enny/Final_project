@@ -1,58 +1,73 @@
 import "./Navbar.scss";
 import { MdNotifications } from "react-icons/md";
-import { FaUserCircle } from "react-icons/fa";
 import { MdArrowDropDown } from "react-icons/md";
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
 const Navbar = () => {
+  const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [username, setUsername] = useState("Guest"); // ค่าเริ่มต้น
-  const [profileImage, setProfileImage] = useState(null);
+  const [username, setUsername] = useState("Guest");
+  const [profileImage, setProfileImage] = useState("");
+  const [role, setRole] = useState(""); // 🔥 เพิ่ม state สำหรับ role
 
   useEffect(() => {
-    const loggedInUser = localStorage.getItem("username") || "Guest";
-    const storedProfileImage = localStorage.getItem("profileImage"); // ✅ ดึงรูปจาก Local Storage
-    setUsername(loggedInUser);
-    if (storedProfileImage) {
-      setProfileImage(storedProfileImage);
+    const storedUserId = localStorage.getItem("user_id");
+    const storedUsername = localStorage.getItem("username");
+    const storedProfileImage = localStorage.getItem("profileImage");
+    const storedRole = localStorage.getItem("role"); // ✅ ดึง role จาก Local Storage
+
+    if (storedUsername) setUsername(storedUsername);
+    if (storedProfileImage) setProfileImage(storedProfileImage);
+    if (storedRole) setRole(storedRole); // ✅ อัปเดต role
+
+    if (storedUserId) {
+      fetchUserProfile(storedUserId);
     }
   }, []);
 
-  useEffect(() => {
-    // ดึงข้อมูลชื่อผู้ใช้จาก Local Storage
-    const loggedInUser = localStorage.getItem("username") || "Guest";
-    setUsername(loggedInUser);
-  }, []);
+  const fetchUserProfile = async (userId) => {
+    try {
+      const res = await axios.get(`http://localhost:3002/api/users/profile/${userId}`);
+      setUsername(res.data.username);
+      setProfileImage(res.data.profile_image);
+      setRole(res.data.role); // ✅ โหลด role จาก API
 
-  const toggleDropdown = () => {
-    setIsDropdownOpen(!isDropdownOpen);
+      // 📌 อัปเดต Local Storage
+      localStorage.setItem("username", res.data.username);
+      localStorage.setItem("profileImage", res.data.profile_image);
+      localStorage.setItem("role", res.data.role);
+    } catch (error) {
+      console.error("❌ โหลดข้อมูลผู้ใช้ไม่สำเร็จ:", error);
+    }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("username"); // ล้างข้อมูลผู้ใช้
-    setUsername("Guest"); // รีเซ็ตเป็น Guest
-    setIsDropdownOpen(false); // ปิด Dropdown
+    localStorage.clear();
+    setUsername("Guest");
+    setProfileImage(""); 
+    setRole(""); // ✅ รีเซ็ต role
+    navigate("/");
   };
 
   return (
     <div className="navbar-container">
       <div className="right-section">
         <MdNotifications size={24} className="icon" />
-        <div className="user-dropdown" onClick={toggleDropdown}>
+        <div className="user-dropdown" onClick={() => setIsDropdownOpen(!isDropdownOpen)}>
           <img
-            src={`http://localhost:3002${profileImage}`} // ✅ โหลดจากเซิร์ฟเวอร์
+            src={profileImage ? `http://localhost:3002${profileImage}` : "/default-avatar.png"}
             alt="Profile"
             className="profile-pic"
           />
-          <span className="user-name">{username}</span> {/* แสดงชื่อผู้ใช้ */}
+          <span className="user-name">{username}</span>
           <MdArrowDropDown size={24} className="icon" />
           {isDropdownOpen && (
             <div className="dropdown-menu">
               <a href="/ProfileSettings">ตั้งค่าโปรไฟล์</a>
-              <a href="/ManageUsers">จัดการบัญชีผู้ใช้</a>
-              <a href="/" onClick={handleLogout}>
-                ออกจากระบบ
-              </a>
+              {role === "admin" && <a href="/ManageUsers">จัดการบัญชีผู้ใช้</a>} {/* 🔥 ซ่อนถ้าไม่ใช่ Admin */}
+              <a href="/" onClick={handleLogout}>ออกจากระบบ</a>
             </div>
           )}
         </div>

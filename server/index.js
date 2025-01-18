@@ -3,41 +3,57 @@ const cors = require("cors");
 const bodyParser = require("body-parser");
 const multer = require("multer");
 const path = require("path");
-const db = require("./config/db.js"); // ✅ ใช้ db จาก config/db.js
-const userRoutes = require("./routes/userRoutes"); // ✅ เชื่อม userRoutes.js
+const http = require("http");
+const db = require("./config/db.js");
+const socket = require("./socket");
 
+// ✅ สร้าง Express App และ HTTP Server
 const app = express();
-const port = 3002;
+const server = http.createServer(app);
+
+// ✅ กำหนดค่าเริ่มต้นของ Socket.io
+socket.init(server);
+const io = socket.getIO(); // ใช้ getIO() เพื่อดึง instance ที่กำหนดค่าแล้ว
 
 // ✅ Middleware
 app.use(cors());
 app.use(bodyParser.json());
 app.use('/uploads/recipes', express.static('uploads/recipes'));
-// ✅ อนุญาตให้เข้าถึงไฟล์ใน `uploads/Userprofile/`
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-// ✅ ตั้งค่า Multer สำหรับอัปโหลดไฟล์
+// ✅ โหลด Order Routes และส่ง io เข้าไป
+const orderRoutes = require("./routes/orderRoutes")(io);
+app.use("/api/orders", orderRoutes);
+
+// ✅ โหลด User Routes
+const userRoutes = require("./routes/userRoutes");
+app.use("/api/users", userRoutes);
+
+// 📌 กำหนด Storage และ Path สำหรับเก็บไฟล์อัปโหลด
 const storage = multer.diskStorage({
   destination: "./uploads/recipes",
-  filename: (req, file, cb) => cb(null, Date.now() + "-" + file.originalname),
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + "-" + file.originalname);
+  },
 });
+
+// 📌 สร้าง middleware สำหรับอัปโหลดไฟล์
 const upload = multer({ storage });
 
 // ✅ ฟังก์ชันสำหรับ Query Database
 const queryDB = async (sql, params = []) => {
   let connection;
   try {
-    connection = await db.getConnection(); // ✅ ใช้ getConnection() อย่างถูกต้อง
+    connection = await db.getConnection();
     const [rows] = await connection.query(sql, params);
     return rows;
   } catch (error) {
     console.error("❌ Database query error:", error);
     throw error;
   } finally {
-    if (connection) connection.release(); // ✅ ต้อง release connection
+    if (connection) connection.release();
   }
 };
-
 
 // ✅ API Routes
 app.use("/api/users", userRoutes);
@@ -526,4 +542,5 @@ app.post("/api/login", async (req, res) => {
 });
 
 // Start the Server
-app.listen(port, () => console.log(`Server running on http://localhost:${port}`));
+server.listen(3002, () => console.log("🚀 Server running..."));
+

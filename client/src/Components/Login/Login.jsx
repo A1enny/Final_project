@@ -33,6 +33,7 @@ const Login = () => {
         // บันทึกข้อมูลผู้ใช้ลง LocalStorage และ SessionStorage
         localStorage.setItem("user_id", response.data.user.id);
         localStorage.setItem("username", response.data.user.username);
+        localStorage.setItem("role", response.data.role);
         sessionStorage.setItem("isLoggedIn", "true");
 
         alert("✅ เข้าสู่ระบบสำเร็จ!");

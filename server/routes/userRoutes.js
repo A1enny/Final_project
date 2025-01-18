@@ -4,7 +4,9 @@ const router = express.Router();
 const path = require("path");
 const multer = require("multer");
 const fs = require("fs");
-
+const socketIo = require("socket.io");
+const socket = require("../socket");
+const io = socket.getIO();
 
 
 // 📌 ตรวจสอบว่ามีโฟลเดอร์สำหรับเก็บไฟล์หรือไม่ ถ้าไม่มีให้สร้าง
@@ -131,6 +133,108 @@ router.put("/password/:id", async (req, res) => {
     } catch (error) {
         console.error("❌ Error updating password:", error);
         res.status(500).json({ message: "เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน" });
+    }
+});
+
+/**
+ * 📌 API ดึงข้อมูลผู้ใช้ทั้งหมด
+ * @route GET /api/users
+ */
+router.get("/", async (req, res) => {
+    try {
+        const [users] = await db.query("SELECT id, username, email, role FROM users");
+        res.json(users);
+    } catch (error) {
+        console.error("❌ Error fetching users:", error);
+        res.status(500).json({ message: "Error fetching users", error });
+    }
+});
+
+/**
+ * 📌 API ลบผู้ใช้
+ * @route DELETE /api/users/:id
+ */
+router.delete("/:id", async (req, res) => {
+    try {
+        const userId = req.params.id;
+        await db.query("DELETE FROM users WHERE id = ?", [userId]);
+        res.json({ message: "✅ ลบผู้ใช้สำเร็จ" });
+    } catch (error) {
+        console.error("❌ Error deleting user:", error);
+        res.status(500).json({ message: "Error deleting user", error });
+    }
+});
+
+//เพิ่มผู้ใช้
+router.post("/", async (req, res) => {
+    try {
+        const { username, email, role, password } = req.body;
+        if (!username || !email || !role || !password) {
+            return res.status(400).json({ message: "❌ กรุณากรอกข้อมูลให้ครบ" });
+        }
+
+        console.log("📌 ข้อมูลที่รับมา:", req.body);
+
+        const [existingUser] = await db.query("SELECT * FROM users WHERE email = ?", [email]);
+        if (existingUser.length > 0) {
+            return res.status(400).json({ message: "❌ อีเมลนี้ถูกใช้งานแล้ว" });
+        }
+
+        const [result] = await db.query(
+            "INSERT INTO users (username, email, role, password) VALUES (?, ?, ?, ?)",
+            [username, email, role, password]
+        );
+
+        console.log("✅ เพิ่มผู้ใช้สำเร็จ:", result);
+
+        res.status(201).json({
+            id: result.insertId,
+            username,
+            email,
+            role,
+        });
+    } catch (error) {
+        console.error("❌ Error adding user:", error);
+        res.status(500).json({ message: "❌ เกิดข้อผิดพลาดในการเพิ่มผู้ใช้", error: error.message });
+    }
+});
+
+// 📌 API สำหรับดึงเมนูอาหารทั้งหมด
+router.get("/menus", async (req, res) => {
+    try {
+        const [menus] = await db.query("SELECT * FROM menus");
+        res.json(menus);
+    } catch (error) {
+        res.status(500).json({ message: "❌ ไม่สามารถโหลดเมนูอาหารได้" });
+    }
+});
+
+// 📌 API สำหรับบันทึกคำสั่งซื้อ
+router.post("/order", async (req, res) => {
+    try {
+        const { table_id, menu_id, quantity, total_price } = req.body;
+        await db.query(
+            "INSERT INTO orders (table_id, menu_id, quantity, status, total_price, payment_status) VALUES (?, ?, ?, 'pending', ?, 'unpaid')",
+            [table_id, menu_id, quantity, total_price]
+        );
+
+        // 📡 ส่งข้อมูลคำสั่งซื้อไปยังพนักงานผ่าน Socket.io
+        io.emit("newOrder", { table_id, menu_id, quantity });
+
+        res.json({ message: "✅ คำสั่งซื้อถูกบันทึกแล้ว!" });
+    } catch (error) {
+        res.status(500).json({ message: "❌ ไม่สามารถบันทึกคำสั่งซื้อได้" });
+    }
+});
+
+// 📌 API สำหรับดึงคำสั่งซื้อของโต๊ะ
+router.get("/orders/:table_id", async (req, res) => {
+    try {
+        const { table_id } = req.params;
+        const [orders] = await db.query("SELECT * FROM orders WHERE table_id = ?", [table_id]);
+        res.json(orders);
+    } catch (error) {
+        res.status(500).json({ message: "❌ ไม่สามารถดึงข้อมูลคำสั่งซื้อได้" });
     }
 });
 
