@@ -28,6 +28,7 @@
       }
   
       .add-user-button {
+        max-width: fit-content;
         background-color: #4e8df5;
         color: #fff;
         padding: 10px 20px;
@@ -45,18 +46,23 @@
     .users-table {
       width: 100%;
       border-collapse: collapse;
+      border-radius: 8px;
   
       th {
-        background-color: #f4f4f4;
+        text-align-last: center;
+        background-color: var(--primaryColor);
+        color: var(--whiteColor);
         text-align: left;
         padding: 10px;
       }
   
       td {
+        text-align: center;
         padding: 10px;
         border: 1px solid #ddd;
   
         .edit-button {
+          max-width: fit-content;
           padding: 5px 10px;
           background-color: #ffc107;
           color: #fff;
@@ -71,6 +77,7 @@
         }
   
         .delete-button {
+          max-width: fit-content;
           padding: 5px 10px;
           background-color: #dc3545;
           color: #fff;
