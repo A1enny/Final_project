@@ -30,7 +30,11 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 const orderRoutes = require("./routes/orderRoutes")(io);
 const tableRoutes = require("./routes/tableRoutes")(io);
 const userRoutes = require("./routes/userRoutes");
+const menuRoutes = require("./routes/menuRoutes");
 
+
+app.use("/api/menus", menuRoutes);
+app.use("/api/menu_category", menuRoutes);  // ✅ เพิ่ม API หมวดหมู่
 app.use("/api/orders", orderRoutes);
 app.use("/api/tables", tableRoutes);
 app.use("/api/users", userRoutes);
@@ -139,15 +143,6 @@ app.put("/api/tables/:id/reset", async (req, res) => {
 });
 
 
-// ✅ ดึงหมวดหมู่ทั้งหมด
-app.get("/api/categories", async (req, res) => {
-  try {
-    const categories = await queryDB("SELECT * FROM categories");
-    res.json(categories);
-  } catch (error) {
-    res.status(500).send("Database error");
-  }
-});
 // ✅ ดึงวัตถุดิบทั้งหมด (พร้อมหมวดหมู่) + Pagination
 app.get("/api/ingredients", async (req, res) => {
   try {

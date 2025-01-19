@@ -2,70 +2,100 @@ import { useState, useEffect } from "react";
 import "./Product.scss";
 import Navbar from "../Layout/Navbar/Navbar";
 import Sidebar from "../Layout/Sidebar/Sidebar";
-import axios from "axios";
-import { useNavigate } from "react-router-dom";
-import jsPDF from "jspdf";
-import "jspdf-autotable";
+import axios from "../Api/axios";
 import Swal from "sweetalert2";
+import Select from "react-select";
+import Modal from "react-modal";
 
 const Product = () => {
-  const [recipes, setRecipes] = useState([]); // 📌 ใช้ state recipes แทน products
+  const [menus, setMenus] = useState([]);
+  const [recipes, setRecipes] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState("");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const navigate = useNavigate();
+  const [modalIsOpen, setModalIsOpen] = useState(false);
+  const [editModalIsOpen, setEditModalIsOpen] = useState(false);
+  const [menuData, setMenuData] = useState({ recipe_id: null, price: "" });
+  const [editData, setEditData] = useState({
+    menu_id: null,
+    recipe_id: null,
+    price: "",
+  });
 
-  // ✅ ดึงข้อมูลสูตรอาหารจาก backend
   useEffect(() => {
-    const fetchRecipes = async () => {
-      setLoading(true);
-      try {
-        const response = await axios.get(
-          `http://localhost:3002/api/recipes?page=${page}`
-        );
-        console.log("API Response:", response.data); // 🛠 Debugging
-        if (response.data.results && Array.isArray(response.data.results)) {
-          setRecipes(response.data.results);
-          setTotalPages(response.data.totalPages);
-        } else {
-          setRecipes([]); // ไม่มีข้อมูล
-        }
-      } catch (error) {
-        console.error("Error fetching recipes:", error);
-        Swal.fire("Error", "ไม่สามารถดึงข้อมูลเมนูอาหารได้", "error");
-      }
-      setLoading(false);
-    };
-
+    fetchMenus();
     fetchRecipes();
-  }, [page]);
+  }, []);
 
-
-  // ✅ ค้นหาเมนูอาหาร
-  const handleSearch = async () => {
+  const fetchMenus = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(
-        `http://localhost:3002/api/recipes?search=${search}`
-      );
-      if (response.data.results) {
-        setRecipes(response.data.results);
-      }
+      const response = await axios.get("http://localhost:3002/api/menus");
+      console.log("📡 API Response:", response.data);
+      setMenus(response.data);
     } catch (error) {
-      console.error("Error searching recipes:", error);
-      Swal.fire("Error", "ไม่พบข้อมูลที่ค้นหา", "warning");
+      console.error("Error fetching menus:", error);
     }
     setLoading(false);
   };
+  const [categoryOptions, setCategoryOptions] = useState([]);
 
-  // ✅ ฟังก์ชันแก้ไข
-  const handleEdit = (recipe) => {
-    navigate(`/editrecipe/${recipe.id}`);
+  const fetchCategories = async () => {
+    try {
+      const response = await axios.get(
+        "http://localhost:3002/api/menus/category"
+      );
+      console.log("📡 API Response (Categories):", response.data);
+      setCategoryOptions(
+        response.data.map((cat) => ({
+          value: cat.category_id,
+          label: cat.category_name,
+        }))
+      );
+    } catch (error) {
+      console.error("❌ Error fetching categories:", error);
+    }
   };
 
-  // ✅ ฟังก์ชันลบเมนูอาหาร
-  const handleDelete = async (id) => {
+  // ✅ โหลดหมวดหมู่เมื่อคอมโพเนนต์ถูกโหลด
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const fetchRecipes = async () => {
+    try {
+      const response = await axios.get("http://localhost:3002/api/recipes");
+      setRecipes(response.data.results);
+    } catch (error) {
+      console.error("Error fetching recipes:", error);
+    }
+  };
+
+  const filteredMenus =
+    selectedCategory === ""
+      ? menus
+      : menus.filter((menu) => menu.category_id === parseInt(selectedCategory));
+
+  const handleAddMenu = async () => {
+    console.log("📌 Debug menuData:", menuData); // ตรวจสอบค่าก่อนส่งไป API
+
+    if (!menuData.recipe_id || !menuData.menu_category_id || !menuData.price) {
+      Swal.fire("Error", "กรุณาเลือกสูตรอาหาร, หมวดหมู่ และกรอกราคา", "error");
+      return;
+    }
+
+    try {
+      await axios.post("http://localhost:3002/api/menus", menuData);
+      setModalIsOpen(false);
+      fetchMenus();
+      Swal.fire("สำเร็จ", "เพิ่มเมนูเรียบร้อย", "success");
+    } catch (error) {
+      console.error("❌ Error adding menu:", error.response?.data || error);
+      Swal.fire("Error", "ไม่สามารถเพิ่มเมนูได้", "error");
+    }
+  };
+
+  const handleDelete = async (menu_id) => {
     Swal.fire({
       title: "ยืนยันการลบ?",
       text: "คุณแน่ใจหรือไม่ว่าต้องการลบเมนูนี้?",
@@ -77,29 +107,39 @@ const Product = () => {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          await axios.delete(`http://localhost:3002/api/recipes/${id}`);
-          setRecipes(recipes.filter((recipe) => recipe.id !== id));
+          await axios.delete(`http://localhost:3002/api/menus/${menu_id}`);
+          fetchMenus();
           Swal.fire("ลบสำเร็จ!", "เมนูถูกลบออกจากระบบแล้ว", "success");
         } catch (error) {
+          console.error("Error deleting menu:", error);
           Swal.fire("Error", "ไม่สามารถลบเมนูได้", "error");
         }
       }
     });
   };
 
-  // ✅ Export PDF
-  const handleExportPDF = () => {
-    const doc = new jsPDF();
-    doc.text("รายการเมนูอาหาร", 14, 10);
-    doc.autoTable({
-      head: [["ลำดับ", "ชื่อเมนู", "หมวดหมู่"]],
-      body: recipes.map((recipe, index) => [
-        index + 1,
-        recipe.name,
-        recipe.category,
-      ]),
+  const openEditModal = (menu) => {
+    setEditData({
+      menu_id: menu.id,
+      recipe_id: menu.recipe_id,
+      price: menu.price,
     });
-    doc.save("Recipes.pdf");
+    setEditModalIsOpen(true);
+  };
+
+  const handleEditMenu = async () => {
+    try {
+      await axios.put(`http://localhost:3002/api/menus/${editData.menu_id}`, {
+        recipe_id: editData.recipe_id,
+        price: editData.price,
+      });
+      setEditModalIsOpen(false);
+      fetchMenus();
+      Swal.fire("สำเร็จ", "แก้ไขเมนูเรียบร้อย", "success");
+    } catch (error) {
+      console.error("Error updating menu:", error);
+      Swal.fire("Error", "ไม่สามารถแก้ไขเมนูได้", "error");
+    }
   };
 
   return (
@@ -107,16 +147,15 @@ const Product = () => {
       <Navbar />
       <Sidebar />
       <div className="product-content">
-        <div className="productheader">
-          <h1>จัดการเมนูอาหาร</h1>
-          <div className="actions">
-            <button className="btn export" onClick={handleExportPDF}>
-              Export PDF
-            </button>
-          </div>
-        </div>
+        <h1 className="product-title">จัดการเมนูอาหาร</h1>
 
-        {/* ✅ ค้นหา */}
+        <button
+          className="btn btn-add-menu"
+          onClick={() => setModalIsOpen(true)}
+        >
+          + เพิ่มเมนู
+        </button>
+
         <div className="filters">
           <input
             type="text"
@@ -125,12 +164,22 @@ const Product = () => {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <button className="btn search" onClick={handleSearch}>
-            ค้นหา
-          </button>
+          <Select
+            className="modal-select"
+            options={[
+              { value: "1", label: "อาหารจานหลัก" },
+              { value: "2", label: "อาหารประเภทเส้น" },
+              { value: "3", label: "อาหารประเภทของทอด" },
+              { value: "4", label: "อาหารประเภทปิ้งย่าง" },
+              { value: "5", label: "อาหารประเภทสเต็กหรือเบอร์เกอร์" },
+            ]}
+            onChange={(e) =>
+              setMenuData({ ...menuData, menu_category_id: e.value })
+            } // ✅ บันทึกค่า menu_category_id
+            placeholder="เลือกหมวดหมู่..."
+          />
         </div>
 
-        {/* ✅ ตารางแสดงเมนูอาหาร */}
         <table className="product-table">
           <thead>
             <tr>
@@ -138,86 +187,107 @@ const Product = () => {
               <th>รูปภาพ</th>
               <th>ชื่อเมนู</th>
               <th>หมวดหมู่</th>
+              <th>ราคา</th>
               <th>การดำเนินการ</th>
             </tr>
           </thead>
           <tbody>
-            {recipes.length > 0 ? (
-              recipes.map((recipe, index) => (
-                <tr key={recipe.id}>
-                  <td>{index + 1}</td>
-                  <td>
-                    <img
-                      src={
-                        recipe.image.startsWith("http")
-                          ? recipe.image
-                          : `http://localhost:3002/uploads/recipes/${recipe.image}`
-                      }
-                      alt={recipe.name}
-                      style={{
-                        width: "50px",
-                        height: "50px",
-                        objectFit: "cover",
-                      }}
-                      onError={(e) => {
-                        e.target.onerror = null; // ป้องกัน loop error
-                        e.target.src =
-                          "http://localhost:3002/uploads/recipes/default.jpg"; // Fallback image
-                      }}
-                    />
-                  </td>
-
-                  <td>{recipe.name}</td>
-                  <td>{recipe.category || "ไม่ระบุหมวดหมู่"}</td>
-                  <td>
-                    <button
-                      className="btn delete"
-                      onClick={() => handleDelete(recipe.id)}
-                    >
-                      ลบ
-                    </button>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td
-                  colSpan="5"
-                  style={{ textAlign: "center", padding: "20px", color: "red" }}
-                >
-                  ❌ ไม่มีข้อมูลเมนูอาหาร
+            {filteredMenus.map((menu, index) => (
+              <tr key={menu.id}>
+                <td>{index + 1}</td>
+                <td>
+                  <img
+                    className="menu-image"
+                    src={menu.image}
+                    alt={menu.name}
+                  />
+                </td>
+                <td>{menu.name}</td>
+                <td>{menu.category_name}</td>
+                <td>{menu.price} บาท</td>
+                <td className="action-buttons">
+                  <button
+                    className="btn btn-edit"
+                    onClick={() => openEditModal(menu)}
+                  >
+                    แก้ไข
+                  </button>
+                  <button
+                    className="btn btn-delete"
+                    onClick={() => handleDelete(menu.id)}
+                  >
+                    ลบ
+                  </button>
                 </td>
               </tr>
-            )}
+            ))}
           </tbody>
         </table>
 
-        {/* ✅ Pagination */}
-        <div className="pagination">
-          <button
-            className="btn"
-            onClick={() => setPage(page - 1)}
-            disabled={page === 1 || loading}
-          >
-            {"<"}
+        <Modal
+          className="modal-content"
+          isOpen={modalIsOpen}
+          onRequestClose={() => setModalIsOpen(false)}
+        >
+          <h2 className="modal-title">เพิ่มเมนู</h2>
+
+          {/* ✅ เลือกสูตรอาหาร */}
+          <Select
+            className="modal-select"
+            options={recipes.map((r) => ({ value: r.id, label: r.name }))}
+            onChange={(e) =>
+              setMenuData((prev) => ({ ...prev, recipe_id: e.value }))
+            }
+          />
+
+          {/* ✅ เลือกหมวดหมู่ */}
+          <Select
+            className="modal-select"
+            options={[
+              { value: "1", label: "อาหารจานหลัก" },
+              { value: "2", label: "อาหารประเภทเส้น" },
+              { value: "3", label: "อาหารประเภทของทอด" },
+              { value: "4", label: "อาหารประเภทปิ้งย่าง" },
+              { value: "5", label: "อาหารประเภทสเต็กหรือเบอร์เกอร์" },
+            ]}
+            onChange={(e) =>
+              setMenuData((prev) => ({ ...prev, menu_category_id: e.value }))
+            }
+          />
+
+          {/* ✅ กรอกราคา */}
+          <input
+            className="modal-input"
+            type="number"
+            placeholder="ราคา"
+            onChange={(e) =>
+              setMenuData((prev) => ({ ...prev, price: e.target.value }))
+            }
+          />
+
+          <button className="btn btn-save" onClick={handleAddMenu}>
+            เพิ่ม
           </button>
-          {Array.from({ length: totalPages }, (_, index) => (
-            <button
-              key={index}
-              className={`btn ${page === index + 1 ? "active" : ""}`}
-              onClick={() => setPage(index + 1)}
-            >
-              {index + 1}
-            </button>
-          ))}
-          <button
-            className="btn"
-            onClick={() => setPage(page + 1)}
-            disabled={page === totalPages || loading}
-          >
-            {">"}
+        </Modal>
+
+        <Modal
+          className="modal-content"
+          isOpen={editModalIsOpen}
+          onRequestClose={() => setEditModalIsOpen(false)}
+        >
+          <h2 className="modal-title">แก้ไขเมนู</h2>
+          <input
+            className="modal-input"
+            type="number"
+            value={editData.price}
+            onChange={(e) =>
+              setEditData({ ...editData, price: e.target.value })
+            }
+          />
+          <button className="btn btn-save" onClick={handleEditMenu}>
+            บันทึก
           </button>
-        </div>
+        </Modal>
       </div>
     </div>
   );
