@@ -7,40 +7,44 @@ const http = require("http");
 const db = require("./config/db.js");
 const socket = require("./socket");
 
-// ✅ สร้าง Express App และ HTTP Server
 const app = express();
 const server = http.createServer(app);
 
-// ✅ กำหนดค่าเริ่มต้นของ Socket.io
-socket.init(server);
-const io = socket.getIO(); // ใช้ getIO() เพื่อดึง instance ที่กำหนดค่าแล้ว
+// ✅ เปิด CORS
+app.use(cors({
+  origin: ["http://localhost:5173", "http://192.168.1.44:5173"],
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
 
-// ✅ Middleware
-app.use(cors());
+// ✅ ใช้ `socket.init(server)` แค่ครั้งเดียว
+socket.init(server);
+const io = socket.getIO(); // ✅ ดึง `io` จาก `socket.js`
+
+// Middleware
 app.use(bodyParser.json());
 app.use('/uploads/recipes', express.static('uploads/recipes'));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-// ✅ โหลด Order Routes และส่ง io เข้าไป
+// ✅ ใช้ `io` ที่ถูกต้องกับ Routes
 const orderRoutes = require("./routes/orderRoutes")(io);
-app.use("/api/orders", orderRoutes);
-
-// ✅ โหลด User Routes
+const tableRoutes = require("./routes/tableRoutes")(io);
 const userRoutes = require("./routes/userRoutes");
+
+app.use("/api/orders", orderRoutes);
+app.use("/api/tables", tableRoutes);
 app.use("/api/users", userRoutes);
 
-// 📌 กำหนด Storage และ Path สำหรับเก็บไฟล์อัปโหลด
+// ✅ ตั้งค่าอัปโหลดไฟล์
 const storage = multer.diskStorage({
   destination: "./uploads/recipes",
   filename: (req, file, cb) => {
     cb(null, Date.now() + "-" + file.originalname);
   },
 });
-
-// 📌 สร้าง middleware สำหรับอัปโหลดไฟล์
 const upload = multer({ storage });
 
-// ✅ ฟังก์ชันสำหรับ Query Database
+// ✅ Query Database Function
 const queryDB = async (sql, params = []) => {
   let connection;
   try {
@@ -55,10 +59,85 @@ const queryDB = async (sql, params = []) => {
   }
 };
 
-// ✅ API Routes
-app.use("/api/users", userRoutes);
+// ✅ SSE for real-time order updates
+app.get("/api/orders/updates", (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
 
-// Routes
+  const sendUpdate = async () => {
+    try {
+      const [orders] = await db.query("SELECT * FROM orders WHERE status IN ('pending', 'preparing')");
+      res.write(`data: ${JSON.stringify(orders)}\n\n`);
+    } catch (error) {
+      console.error("❌ Error fetching order updates:", error);
+    }
+  };
+
+  const interval = setInterval(sendUpdate, 5000);
+  req.on("close", () => clearInterval(interval));
+});
+
+// ✅ SSE for real-time table updates
+app.get("/api/tables/updates", (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+
+  const sendUpdate = async () => {
+    try {
+      const [tables] = await db.query("SELECT * FROM tables");
+      res.write(`data: ${JSON.stringify(tables)}\n\n`);
+    } catch (error) {
+      console.error("❌ Error fetching table updates:", error);
+    }
+  };
+
+  const interval = setInterval(sendUpdate, 5000);
+  req.on("close", () => clearInterval(interval));
+});
+
+const QRCode = require("qrcode");
+
+// ✅ API สำหรับสร้าง QR Code สำหรับแต่ละโต๊ะ
+app.get("/api/qrcode/:table_id", async (req, res) => {
+  try {
+    const { table_id } = req.params;
+    const orderUrl = `http://localhost:5173/order/${table_id}`; // ลิงก์ไปหน้าสั่งอาหาร
+
+    // สร้าง QR Code เป็น Base64
+    const qrCodeData = await QRCode.toDataURL(orderUrl);
+
+    res.json({ table_id, qr_code: qrCodeData });
+  } catch (error) {
+    console.error("❌ Error generating QR Code:", error);
+    res.status(500).json({ error: "Error generating QR Code" });
+  }
+});
+
+app.put("/api/tables/:id/start", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const session_id = Date.now().toString();
+    await queryDB("UPDATE tables SET status = 'in-use', session_id = ? WHERE table_id = ?", [session_id, id]);
+    res.json({ message: "โต๊ะถูกเริ่มใช้งานแล้ว", session_id });
+  } catch (error) {
+    console.error("❌ Error starting table:", error);
+    res.status(500).json({ error: "Error starting table" });
+  }
+});
+
+app.put("/api/tables/:id/reset", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await queryDB("UPDATE tables SET status = 'available', session_id = NULL WHERE table_id = ?", [id]);
+    res.json({ message: "โต๊ะกลับเป็น available แล้ว" });
+  } catch (error) {
+    console.error("❌ Error resetting table:", error);
+    res.status(500).json({ error: "Error resetting table" });
+  }
+});
+
 
 // ✅ ดึงหมวดหมู่ทั้งหมด
 app.get("/api/categories", async (req, res) => {
@@ -368,15 +447,31 @@ app.delete("/api/recipes/:id", async (req, res) => {
     res.status(500).json({ error: "Error deleting recipe" });
   }
 });
+// ✅ เพิ่ม API ดึงข้อมูลเมนู
+app.get("/api/menus", async (req, res) => {
+  try {
+    const menus = await db.query(
+      `SELECT m.menu_id, r.recipe_name AS menu_name, m.price, r.image AS menu_image 
+       FROM menus m
+       LEFT JOIN recipes r ON m.recipe_id = r.recipe_id`
+    );
+
+    res.json(menus[0]);  // ✅ ส่งข้อมูลกลับไปที่ frontend
+  } catch (error) {
+    console.error("❌ Error fetching menus:", error);
+    res.status(500).json({ error: "Error fetching menus" });
+  }
+});
 
 app.get("/api/menus/:id", async (req, res) => {
   try {
     const { id } = req.params;
+    
     const menu = await queryDB(
-      `SELECT m.menu_id, m.menu_name, m.price, r.recipe_name 
-       FROM maw_db_menus m
-       LEFT JOIN maw_db_recipes r ON m.recipe_id = r.recipe_id
-       WHERE menu_id = ?`,
+      `SELECT m.menu_id, r.recipe_name AS menu_name, m.price, r.image AS menu_image 
+       FROM menus m
+       LEFT JOIN recipes r ON m.recipe_id = r.recipe_id
+       WHERE m.menu_id = ?`,
       [id]
     );
 
@@ -391,6 +486,7 @@ app.get("/api/menus/:id", async (req, res) => {
   }
 });
 
+
 app.post("/api/menus", async (req, res) => {
   try {
     const { menu_name, recipe_id, price } = req.body;
@@ -400,7 +496,7 @@ app.post("/api/menus", async (req, res) => {
     }
 
     const result = await queryDB(
-      "INSERT INTO maw_db_menus (menu_name, recipe_id, price) VALUES (?, ?, ?)",
+      "INSERT INTO menus (menu_name, recipe_id, price) VALUES (?, ?, ?)",
       [menu_name, recipe_id, price]
     );
 
@@ -412,17 +508,17 @@ app.post("/api/menus", async (req, res) => {
 });
 
 //table
+// Express route for fetching tables
 app.get("/api/tables", async (req, res) => {
   try {
-    console.log("📢 Fetching tables...");
     const tables = await queryDB("SELECT * FROM tables ORDER BY table_number ASC");
-    console.log("✅ Tables fetched:", tables);
     res.json(tables);
   } catch (error) {
     console.error("❌ Error fetching tables:", error);
     res.status(500).json({ error: "Error fetching tables" });
   }
 });
+
 
 app.get("/api/tables/:id", async (req, res) => {
   try {
@@ -541,6 +637,7 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
-// Start the Server
-server.listen(3002, () => console.log("🚀 Server running..."));
-
+// ✅ เปิดให้มือถือเข้าถึง API
+server.listen(3002, "0.0.0.0", () => {
+  console.log("🚀 Server running on http://192.168.1.44:3002");
+});

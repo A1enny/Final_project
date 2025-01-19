@@ -1,96 +1,56 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import "./Table.scss";
-import Navbar from "../Layout/Navbar/Navbar";
-import Sidebar from "../Layout/Sidebar/Sidebar";
-import axios from "axios";
+import { useEffect, useState } from "react";
+import axios from "../Api/axios";
 import Swal from "sweetalert2";
+import { QRCodeCanvas } from "qrcode.react";
+import Sidebar from "../Layout/Sidebar/Sidebar";
+import Navbar from "../Layout/Navbar/Navbar";
+import "./Table.scss";
 
 const Table = () => {
-  const [tables, setTables] = useState([]); // ✅ กำหนด state สำหรับข้อมูลโต๊ะ
-  const [searchTerm, setSearchTerm] = useState(""); // ✅ กำหนด state สำหรับการค้นหา
-  const [filter, setFilter] = useState(""); // ✅ กำหนด state สำหรับตัวกรอง
-  const navigate = useNavigate();
-
-  
-  // ✅ ดึงข้อมูลโต๊ะจาก Backend เมื่อโหลดหน้า
-  useEffect(() => {
-    fetchTables();
-  }, []);
+  const [tables, setTables] = useState([]);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
 
   const fetchTables = async () => {
     try {
-      const response = await axios.get("http://localhost:3002/api/tables");
+      let url = "http://localhost:3002/api/tables";
+  
+      // ✅ เช็คว่ามีค่าจริงก่อนเพิ่มพารามิเตอร์ลงไปใน URL
+      const queryParams = [];
+      if (search) queryParams.push(`search=${encodeURIComponent(search)}`);
+      if (statusFilter) queryParams.push(`status=${encodeURIComponent(statusFilter)}`);
+  
+      if (queryParams.length > 0) {
+        url += `?${queryParams.join("&")}`;
+      }
+  
+      const response = await axios.get(url);
       setTables(response.data);
     } catch (error) {
-      console.error("Error fetching tables:", error);
-      Swal.fire("Error", "ไม่สามารถดึงข้อมูลโต๊ะได้", "error");
+      console.error("❌ ดึงข้อมูลโต๊ะผิดพลาด:", error);
     }
   };
+  
 
-  // ✅ ค้นหาโต๊ะตามหมายเลข หรือสถานะ
-  const handleSearch = async () => {
+  useEffect(() => {
+    fetchTables();
+  }, [search, statusFilter]);
+
+  useEffect(() => {
+    const eventSource = new EventSource("http://localhost:3002/api/tables/updates");
+    eventSource.onmessage = (event) => setTables(JSON.parse(event.data));
+    return () => eventSource.close();
+  }, []);
+
+  const handleAction = async (url, successMessage) => {
     try {
-      const response = await axios.get(
-        "http://localhost:3002/api/tables/search",
-        {
-          params: { search: searchTerm, status: filter },
-        }
-      );
-      setTables(response.data);
+      await axios.put(url);
+      Swal.fire({ title: "✅ สำเร็จ", text: successMessage, icon: "success", timer: 1500, showConfirmButton: false });
+      fetchTables();
     } catch (error) {
-      Swal.fire("Error", "ไม่พบโต๊ะที่ค้นหา", "warning");
+      console.error("❌ Error:", error.response?.data || error.message);
+      Swal.fire("❌ ไม่สามารถดำเนินการได้", "กรุณาลองใหม่", "error");
     }
-  };
-
-  // ✅ เพิ่มโต๊ะใหม่
-  const handleAddTable = async () => {
-    const { value: formValues } = await Swal.fire({
-      title: "เพิ่มโต๊ะใหม่",
-      html: `
-        <input id="tableNumber" class="swal2-input" placeholder="หมายเลขโต๊ะ">
-        <input id="seats" class="swal2-input" placeholder="จำนวนที่นั่ง" type="number">
-      `,
-      focusConfirm: false,
-      showCancelButton: true,
-      preConfirm: () => ({
-        table_number: document.getElementById("tableNumber").value,
-        seats: document.getElementById("seats").value,
-      }),
-    });
-
-    if (formValues) {
-      try {
-        await axios.post("http://localhost:3002/api/tables", formValues);
-        fetchTables(); // ✅ โหลดข้อมูลใหม่หลังจากเพิ่ม
-        Swal.fire("สำเร็จ!", "เพิ่มโต๊ะใหม่เรียบร้อย", "success");
-      } catch (error) {
-        Swal.fire("Error", "ไม่สามารถเพิ่มโต๊ะได้", "error");
-      }
-    }
-  };
-
-  // ✅ ลบโต๊ะ
-  const handleDeleteTable = async (id) => {
-    Swal.fire({
-      title: "ยืนยันการลบ?",
-      text: "คุณแน่ใจหรือไม่ว่าต้องการลบโต๊ะนี้?",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
-      confirmButtonText: "ลบ",
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        try {
-          await axios.delete(`http://localhost:3002/api/tables/${id}`);
-          fetchTables(); // ✅ โหลดข้อมูลใหม่หลังจากลบ
-          Swal.fire("ลบสำเร็จ!", "โต๊ะถูกลบแล้ว", "success");
-        } catch (error) {
-          Swal.fire("Error", "ไม่สามารถลบโต๊ะได้", "error");
-        }
-      }
-    });
   };
 
   return (
@@ -99,30 +59,18 @@ const Table = () => {
       <Sidebar />
       <div className="Table-content">
         <h1>จัดการโต๊ะอาหาร</h1>
-        <div className="Table-filters">
-          <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            className="filter-dropdown"
-          >
-            <option value="">ตัวกรองทั้งหมด</option>
-            <option value="available">ว่าง</option>
-            <option value="occupied">ไม่ว่าง</option>
-            <option value="reserved">จองแล้ว</option>
-          </select>
+        <div className="table-controls">
           <input
             type="text"
-            placeholder="ค้นหา หมายเลขโต๊ะ"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="search-input"
+            placeholder="ค้นหาโต๊ะ..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
           />
-          <button onClick={handleSearch} className="search-button">
-            ค้นหา
-          </button>
-          <button onClick={handleAddTable} className="add-button">
-            เพิ่มโต๊ะใหม่
-          </button>
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="">ทั้งหมด</option>
+            <option value="available">Available</option>
+            <option value="in-use">In Use</option>
+          </select>
         </div>
         <table className="Table-data">
           <thead>
@@ -130,6 +78,7 @@ const Table = () => {
               <th>หมายเลขโต๊ะ</th>
               <th>จำนวนที่นั่ง</th>
               <th>สถานะ</th>
+              <th>QR Code</th>
               <th>จัดการ</th>
             </tr>
           </thead>
@@ -138,20 +87,13 @@ const Table = () => {
               <tr key={table.table_id}>
                 <td>{table.table_number}</td>
                 <td>{table.seats}</td>
-                <td>
-                  <span className={`status ${table.status}`}>
-                    {table.status}
-                  </span>
-                </td>
+                <td><span className={`status ${table.status}`}>{table.status}</span></td>
+                <td><QRCodeCanvas value={`http://192.168.1.44:5173/order/${table.table_id}?guest=true`} size={50} /></td>
                 <td>
                   <div className="button-group">
-                    <button className="details-button">ดูรายละเอียด</button>
-                    <button
-                      className="delete-button"
-                      onClick={() => handleDeleteTable(table.table_id)}
-                    >
-                      ลบ
-                    </button>
+                    {table.status === "available" && <button className="start-btn" onClick={() => handleAction(`http://localhost:3002/api/tables/${table.table_id}/start`, "โต๊ะถูกใช้งานแล้ว")}>▶ เริ่มใช้งาน</button>}
+                    {table.status === "in-use" && <button className="reset-btn" onClick={() => handleAction(`http://localhost:3002/api/tables/${table.table_id}/reset`, "โต๊ะกลับมาใช้งานได้แล้ว")}>🔄 คืนโต๊ะ</button>}
+                    <button className="delete-button" onClick={() => handleAction(`http://localhost:3002/api/tables/${table.table_id}/delete`, "โต๊ะถูกลบแล้ว")}>🗑 ลบ</button>
                   </div>
                 </td>
               </tr>
