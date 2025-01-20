@@ -3,7 +3,7 @@ import { MdNotifications } from "react-icons/md";
 import { MdArrowDropDown } from "react-icons/md";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import axios from "../../../Api/axios";
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -29,7 +29,7 @@ const Navbar = () => {
 
   const fetchUserProfile = async (userId) => {
     try {
-      const res = await axios.get(`http://localhost:3002/api/users/profile/${userId}`);
+      const res = await axios.get(`http://localhost/api/users/profile/${userId}`);
       setUsername(res.data.username);
       setProfileImage(res.data.profile_image);
       setRole(res.data.role); // ✅ โหลด role จาก API
@@ -57,7 +57,7 @@ const Navbar = () => {
         <MdNotifications size={24} className="icon" />
         <div className="user-dropdown" onClick={() => setIsDropdownOpen(!isDropdownOpen)}>
           <img
-            src={profileImage ? `http://localhost:3002${profileImage}` : "/default-avatar.png"}
+            src={profileImage ? `http://localhost${profileImage}` : "/default-avatar.png"}
             alt="Profile"
             className="profile-pic"
           />
