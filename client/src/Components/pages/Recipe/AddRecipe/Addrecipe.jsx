@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import axios from "../../Api/axios";
+import axios from "../../../../Api/axios";
 import Swal from "sweetalert2";
 import Select from "react-select";
-import Navbar from "../../Layout/Navbar/Navbar";
-import Sidebar from "../../Layout/Sidebar/Sidebar";
-import "./Addrecipe.scss";
+import Navbar from "../../../../Components/Layout/Navbar/Navbar";
+import Sidebar from "../../../../Components/Layout/Sidebar/Sidebar";
+import "./Addrecipe.scss"
 
 const unitOptions = [
   { value: "กรัม", label: "กรัม" },
