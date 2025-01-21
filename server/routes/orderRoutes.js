@@ -3,9 +3,16 @@ const router = express.Router();
 const db = require("../config/db.js");
 
 module.exports = (io) => {
-  router.get("/", (req, res) => {
-    res.send("Orders API is working!");
+  router.get("/", async (req, res) => {
+    try {
+      const [orders] = await db.query("SELECT * FROM orders");
+      res.json(orders);
+    } catch (error) {
+      console.error("❌ Error fetching orders:", error);
+      res.status(500).json({ error: "Server error" });
+    }
   });
+  
 
   router.post("/", (req, res) => {
     const { table_id, session_id, menu_id, quantity, price } = req.body;

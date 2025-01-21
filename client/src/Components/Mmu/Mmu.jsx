@@ -1,6 +1,6 @@
 import Swal from "sweetalert2";
 import { useState, useEffect } from "react";
-import axios from "axios";
+import axios from "../Api/axios";
 import Navbar from "../Layout/Navbar/Navbar";
 import Sidebar from "../Layout/Sidebar/Sidebar";
 import "./Mmu.scss";
@@ -38,7 +38,6 @@ const ManageUsers = () => {
             <select id="swal-input-role" class="swal2-input">
                 <option value="Admin">Admin</option>
                 <option value="Staff">Staff</option>
-                <option value="Customer">Customer</option>
             </select>
         `,
         focusConfirm: false,

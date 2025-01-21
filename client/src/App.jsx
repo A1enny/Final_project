@@ -34,7 +34,8 @@ function App() {
 
         {/* Protected Routes for Admin only */}
         <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
-          <Route path="/manage-users" element={<ManageUsers />} />
+          <Route path="/ManageUsers" element={<ManageUsers />} />
+          <Route path="/addrecipe/:id" element={<Addrecipe />} />
         </Route>
 
         {/* Protected Routes for Admin and Staff */}

@@ -104,6 +104,34 @@ module.exports = (io) => {
       res.status(500).json({ message: "Error updating profile", error });
     }
   });
+  
+  // 📌 เพิ่มผู้ใช้ใหม่ (สมัครสมาชิก)
+  router.post("/", async (req, res) => {
+    try {
+      const { username, password, role, email, phone_number, address } = req.body;
+
+      if (!username || !password || !role || !email) {
+        return res.status(400).json({ message: "❌ กรุณากรอกข้อมูลให้ครบถ้วน" });
+      }
+
+      // ตรวจสอบว่ามีชื่อผู้ใช้ซ้ำหรือไม่
+      const [existingUsers] = await db.query("SELECT * FROM users WHERE username = ?", [username]);
+      if (existingUsers.length) {
+        return res.status(409).json({ message: "❌ ชื่อผู้ใช้มีอยู่แล้ว" });
+      }
+
+      // เพิ่มผู้ใช้ลงในฐานข้อมูล
+      await db.query(
+        "INSERT INTO users (username, password, role, email, phone_number, address) VALUES (?, ?, ?, ?, ?, ?)",
+        [username, password, role, email, phone_number || "", address || ""]
+      );
+
+      res.status(201).json({ message: "✅ เพิ่มผู้ใช้สำเร็จ" });
+    } catch (error) {
+      console.error("❌ Error creating user:", error);
+      res.status(500).json({ message: "❌ ไม่สามารถเพิ่มผู้ใช้ได้", error });
+    }
+  });
 
   // 📌 อัปเดตรหัสผ่าน
   router.put("/password/:id", async (req, res) => {

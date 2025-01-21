@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import axios from "axios";
+import axios from "../../Api/axios";
 import Swal from "sweetalert2";
 import Select from "react-select";
 import Navbar from "../../Layout/Navbar/Navbar";
@@ -138,11 +138,13 @@ const Addrecipe = () => {
 
   // ✅ ส่งข้อมูลไป API
   const submitRecipe = async () => {
-    if (!recipe.recipe_name || !recipe.category_id || ingredients.length === 0) {
+    console.log("✅ ตรวจสอบค่าก่อนส่ง:", recipe, ingredients);
+  
+    if (!recipe.recipe_name || ingredients.length === 0) {
       Swal.fire("Error", "กรุณากรอกข้อมูลให้ครบถ้วนทุกช่อง", "error");
       return;
     }
-
+  
     try {
       const formData = new FormData();
       formData.append("recipe_name", recipe.recipe_name);

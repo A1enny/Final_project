@@ -13,13 +13,52 @@ const OrderPage = () => {
 
   const fetchOrders = async () => {
     try {
-      const response = await axios.get("/orders");
+      const response = await axios.get("http://192.168.1.44:3002/api/orders");
+      console.log("📡 ออเดอร์ที่ได้รับ:", response.data);
       setOrders(response.data);
     } catch (error) {
       console.error("❌ Error fetching orders:", error);
     }
   };
-
+  
+  const placeOrder = async () => {
+    if (!selectedTable) {
+      Swal.fire("กรุณาเลือกโต๊ะ", "", "warning");
+      return;
+    }
+  
+    if (cart.length === 0) {
+      Swal.fire("ตะกร้าว่างเปล่า", "กรุณาเลือกสินค้า", "warning");
+      return;
+    }
+  
+    try {
+      const session_id = "session123"; // สามารถใช้ UUID หรือ session จริง
+      const ordersPayload = cart.map((item) => ({
+        menu_id: item.menu_id,
+        quantity: item.quantity,
+        price: item.price,
+      }));
+  
+      const response = await axios.post("http://192.168.1.44:3002/api/orders/bulk", {
+        table_id: selectedTable,
+        session_id,
+        orders: ordersPayload,
+      });
+  
+      // 📡 แจ้งเตือน WebSocket
+      socket.emit("new_order", response.data);
+  
+      Swal.fire("สั่งซื้อสำเร็จ", "ออเดอร์ของคุณถูกส่งแล้ว", "success").then(
+        () => navigate("/order-summary")
+      );
+    } catch (error) {
+      console.error("❌ Error placing order:", error);
+      Swal.fire("เกิดข้อผิดพลาด", "ไม่สามารถสั่งซื้อได้", "error");
+    }
+  };
+  
+  
   useEffect(() => {
     socket.on("new_order", (data) => {
       console.log("📡 ออเดอร์ใหม่เข้ามา:", data);
