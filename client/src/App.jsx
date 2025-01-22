@@ -46,7 +46,7 @@ function App() {
           <Route path="/report" element={<Report />} />
           <Route path="/table" element={<Tables />} />
           <Route path="/edit-table/:id" element={<EditTable />} />
-          <Route path="/table-details/:tableId" element={<TableDetails />} />
+          <Route path="/table-details/:table_id" element={<TableDetails />} />
           <Route path="/start-table/:tableId" element={<StartTable />} />
         </Route>
 

@@ -4,6 +4,26 @@ const db = require("../config/db");
 module.exports = (io) => {
   const router = express.Router();
 
+  // ✅ ดึงข้อมูลโต๊ะตาม ID
+  router.get("/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const [tables] = await db.query(
+        "SELECT * FROM tables WHERE table_id = ?",
+        [id]
+      );
+
+      if (tables.length === 0) {
+        return res.status(404).json({ error: "ไม่พบโต๊ะนี้" });
+      }
+
+      res.json(tables[0]); // ✅ ส่งค่าโต๊ะตัวเดียวกลับไป
+    } catch (error) {
+      console.error("❌ Error fetching table by ID:", error);
+      res.status(500).json({ error: "Server error" });
+    }
+  });
+
   // ✅ ดึงข้อมูลโต๊ะทั้งหมด
   router.get("/", async (req, res) => {
     try {
@@ -75,7 +95,10 @@ module.exports = (io) => {
     try {
       const { id } = req.params;
       const { status, session_id } = req.body;
-      await db.query("UPDATE tables SET status = ?, session_id = ? WHERE table_id = ?", [status, session_id, id]);
+      await db.query(
+        "UPDATE tables SET status = ?, session_id = ? WHERE table_id = ?",
+        [status, session_id, id]
+      );
       res.json({ message: "อัปเดตสถานะโต๊ะสำเร็จ" });
     } catch (error) {
       console.error("❌ Error updating table:", error);
@@ -101,22 +124,22 @@ module.exports = (io) => {
     const params = [];
 
     if (search) {
-        sql += " AND table_number LIKE ?";
-        params.push(`%${search}%`);
+      sql += " AND table_number LIKE ?";
+      params.push(`%${search}%`);
     }
     if (status) {
-        sql += " AND status = ?";
-        params.push(status);
+      sql += " AND status = ?";
+      params.push(status);
     }
 
     try {
-        const [rows] = await db.query(sql, params);
-        res.json(rows);
+      const [rows] = await db.query(sql, params);
+      res.json(rows);
     } catch (error) {
-        console.error("❌ Error fetching tables:", error);
-        res.status(500).json({ error: "Error fetching tables" });
+      console.error("❌ Error fetching tables:", error);
+      res.status(500).json({ error: "Error fetching tables" });
     }
-});
+  });
 
   return router;
 };

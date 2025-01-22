@@ -7,6 +7,13 @@ export default defineConfig({
 
   server: {
     host: '0.0.0.0', // เปิดให้ทุกอุปกรณ์ในเครือข่ายเข้าถึงได้
-    port: 5173
+    port: 5173,
+    proxy:{
+      "/api":{
+        target: "http://localhost:3002",
+        changeOrigin: true,
+        secure: false,
+      }
+    }
   }
 });

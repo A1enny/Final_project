@@ -4,6 +4,7 @@ const http = require("http");
 const db = require("./config/db");
 const socketIo = require("./socket.js");
 const multer = require("multer");
+const path = require("path");
 
 const app = express();
 const server = http.createServer(app);
@@ -22,7 +23,8 @@ app.use(cors({
 app.use(express.json()); // Replaces bodyParser.json()
 app.use(express.urlencoded({ extended: true })); // Replaces bodyParser.urlencoded()
 app.use('/uploads/recipes', express.static('uploads/recipes'));
-app.use("/uploads", express.static("uploads"));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
 
 // ✅ ใช้ `io` ที่ถูกต้องกับ Routes
 const orderRoutes = require("./routes/orderRoutes")(io);
