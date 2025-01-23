@@ -68,12 +68,15 @@ const Table = () => {
       Swal.fire("❌ กรุณากรอกข้อมูลให้ครบ", "", "error");
       return;
     }
-
+  
     try {
-      await axios.post("http://localhost:3002/api/tables", newTable);
+      await axios.post("http://localhost:3002/api/tables", {
+        ...newTable,
+        status: "available", // ✅ กำหนดค่า default
+      });
+  
       Swal.fire("✅ เพิ่มโต๊ะสำเร็จ!", "", "success");
       setIsModalOpen(false);
-      setNewTable({ table_number: "", seats: "" });
       fetchTables();
     } catch (error) {
       console.error("❌ Error:", error);
@@ -133,7 +136,7 @@ const Table = () => {
                 <td>
                   <QRCodeCanvas
                     value={`http://192.168.1.44:5173/order/${table.table_id}?guest=true`}
-                    size={50}
+                    size={100}
                   />
                 </td>
                 <td>

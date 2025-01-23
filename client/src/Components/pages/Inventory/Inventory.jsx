@@ -23,16 +23,19 @@ const Inventory = () => {
           searchTerm,
           category: selectedCategory,
         });
-  
-        const ingredientsRes = await axios.get("http://localhost:3002/api/ingredients", {
-          params: {
-            searchTerm,
-            category: selectedCategory,
-          },
-        });
-  
+
+        const ingredientsRes = await axios.get(
+          "http://localhost:3002/api/ingredients",
+          {
+            params: {
+              searchTerm,
+              category: selectedCategory,
+            },
+          }
+        );
+
         console.log("✅ Fetched ingredients:", ingredientsRes.data);
-  
+
         setIngredients(ingredientsRes.data.results);
         setTotalPages(1); // ✅ ปิด Pagination ตอนค้นหา
       } catch (error) {
@@ -41,7 +44,7 @@ const Inventory = () => {
     };
     fetchData();
   }, [searchTerm, selectedCategory]);
-    
+
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -54,7 +57,7 @@ const Inventory = () => {
     };
     fetchCategories();
   }, []);
-  
+
   // Handle page change
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= totalPages) {

@@ -3,35 +3,35 @@ const router = express.Router();
 const db = require("../config/db.js");
 
 module.exports = (io) => {
-// ✅ ดึงรายการออร์เดอร์ทั้งหมด
-router.get("/", async (req, res) => {
-  try {
-    const { table_id } = req.query;
-    let query = `
+  // ✅ ดึงรายการออร์เดอร์ทั้งหมด
+  router.get("/", async (req, res) => {
+    try {
+      const { table_id } = req.query;
+      let query = `
       SELECT 
         r.recipe_name,  
-        SUM(o.quantity) AS total_quantity,  -- ✅ รวมจำนวน
-        SUM(o.total_price) AS total_price  -- ✅ รวมราคาทั้งหมด
+        SUM(o.quantity) AS total_quantity,
+        SUM(o.total_price) AS total_price
       FROM orders o
       LEFT JOIN menus m ON o.menu_id = m.menu_id
       LEFT JOIN recipes r ON m.recipe_id = r.recipe_id
       WHERE o.table_id = ?
-      GROUP BY r.recipe_name  -- ✅ รวมรายการที่มีชื่อเมนูซ้ำกัน
+      GROUP BY r.recipe_name
       ORDER BY MAX(o.created_at) DESC
     `;
 
-    const [orders] = await db.query(query, [table_id]);
-    res.json(orders);
-  } catch (error) {
-    console.error("❌ Error fetching orders:", error);
-    res.status(500).json({ error: "เกิดข้อผิดพลาดในการดึงข้อมูลคำสั่งซื้อ" });
-  }
-});
-
+      const [orders] = await db.query(query, [table_id]);
+      res.json(orders);
+    } catch (error) {
+      console.error("❌ Error fetching orders:", error);
+      res.status(500).json({ error: "เกิดข้อผิดพลาดในการดึงข้อมูลคำสั่งซื้อ" });
+    }
+  });
 
   // ✅ สั่งอาหารแบบรายการเดียว
   router.post("/", async (req, res) => {
-    const { table_id, session_id, menu_id, menu_name, quantity, price } = req.body;
+    const { table_id, session_id, menu_id, menu_name, quantity, price } =
+      req.body;
     const orderQuantity = quantity || 1;
     const totalPrice = price * orderQuantity;
 
@@ -148,13 +148,13 @@ router.get("/", async (req, res) => {
         JOIN menus m ON o.menu_id = m.menu_id
         JOIN recipes r ON m.recipe_id = r.recipe_id  -- ✅ JOIN recipes
       `;
-  
+
       const params = [];
       if (table_id) {
         query += " WHERE o.table_id = ?";
         params.push(table_id);
       }
-  
+
       const [orders] = await db.query(query, params);
       res.json(orders);
     } catch (error) {
@@ -165,7 +165,7 @@ router.get("/", async (req, res) => {
 
   router.put("/update-status/:tableId", async (req, res) => {
     const { tableId } = req.params;
-    
+
     try {
       await db.query(
         "UPDATE orders SET status = 'paid' WHERE table_id = ? AND status = 'pending'",
@@ -173,28 +173,137 @@ router.get("/", async (req, res) => {
       );
       res.json({ success: true, message: "อัปเดตสถานะเป็น paid แล้ว" });
     } catch (error) {
-      res.status(500).json({ success: false, message: "เกิดข้อผิดพลาด", error });
+      res
+        .status(500)
+        .json({ success: false, message: "เกิดข้อผิดพลาด", error });
     }
   });
-  
-  router.put("/update-payment", async (req, res) => {
-    const { table_id, payment_status } = req.body;
-  
+
+  router.put("/confirm-payment", async (req, res) => {
+    const { table_id } = req.body;
+
     if (!table_id) {
-      return res.status(400).json({ success: false, message: "ต้องระบุ table_id" });
+      return res
+        .status(400)
+        .json({ success: false, message: "ต้องระบุ table_id" });
     }
-  
+
+    let connection;
     try {
-      await db.query(
-        "UPDATE orders SET payment_status = ? WHERE table_id = ?",
-        [payment_status, table_id]
+      connection = await db.getConnection();
+      await connection.beginTransaction();
+
+      // ✅ 1. ดึงรายการออร์เดอร์ของโต๊ะนี้
+      const [orders] = await connection.query(
+        `SELECT o.menu_id, o.quantity, o.total_price 
+         FROM orders o 
+         WHERE o.table_id = ? AND o.payment_status = 'unpaid'`,
+        [table_id]
       );
-      res.json({ success: true, message: "อัปเดตการชำระเงินสำเร็จ!" });
+
+      if (orders.length === 0) {
+        throw new Error("ไม่มีออร์เดอร์ที่ต้องชำระเงิน");
+      }
+
+      // ✅ 2. หักจำนวนวัตถุดิบตามสูตรอาหาร
+      for (const order of orders) {
+        const [ingredientResults] = await connection.query(
+          `SELECT ri.ingredient_id, ri.amount, i.quantity AS current_quantity
+           FROM recipe_ingredients ri
+           JOIN menus m ON ri.recipe_id = m.recipe_id
+           JOIN ingredients i ON ri.ingredient_id = i.ingredient_id
+           WHERE m.menu_id = ?`,
+          [order.menu_id]
+        );
+
+        if (!ingredientResults || ingredientResults.length === 0) {
+          console.warn(`⚠️ ไม่มีวัตถุดิบที่ต้องลดสำหรับเมนู ${order.menu_id}`);
+          continue;
+        }
+
+        for (const ingredient of ingredientResults) {
+          // 🔹 **ตรวจสอบหน่วยของวัตถุดิบ**
+          let currentQuantity = ingredient.current_quantity * 1000; // แปลงจาก kg เป็น g
+          let amountToDeduct = ingredient.amount * order.quantity * 1000; // แปลงจาก kg เป็น g
+
+          console.log(
+            `🔹 ก่อนลด ingredient_id=${ingredient.ingredient_id}, คงเหลือ=${currentQuantity} g`
+          );
+
+          if (currentQuantity < amountToDeduct) {
+            console.error(
+              `⚠️ วัตถุดิบไม่พอ ingredient_id=${ingredient.ingredient_id}, ต้องการ=${amountToDeduct} g, คงเหลือ=${currentQuantity} g`
+            );
+            throw new Error(
+              `วัตถุดิบไม่พอ: ingredient_id=${ingredient.ingredient_id}`
+            );
+          }
+
+          console.log(
+            `🔹 ลดวัตถุดิบ: ingredient_id = ${ingredient.ingredient_id}, ลด = ${amountToDeduct} g`
+          );
+
+          // ✅ **อัปเดตจำนวนวัตถุดิบในหน่วยกิโลกรัม**
+          let newQuantity = (currentQuantity - amountToDeduct) / 1000; // แปลงกลับเป็น kg
+
+          await connection.query(
+            "UPDATE ingredients SET quantity = ? WHERE ingredient_id = ?",
+            [newQuantity, ingredient.ingredient_id]
+          );
+
+          const [updatedIngredient] = await connection.query(
+            "SELECT quantity FROM ingredients WHERE ingredient_id = ?",
+            [ingredient.ingredient_id]
+          );
+
+          console.log(
+            `✅ หลังลด ingredient_id=${ingredient.ingredient_id}, คงเหลือ=${updatedIngredient[0].quantity} kg`
+          );
+        }
+      }
+
+      // ✅ 3. บันทึกยอดขาย
+      for (const order of orders) {
+        await connection.query(
+          "INSERT INTO sales (table_id, menu_id, quantity, total_price, sale_date) VALUES (?, ?, ?, ?, NOW())",
+          [table_id, order.menu_id, order.quantity, order.total_price]
+        );
+      }
+
+      // ✅ 4. ลบออร์เดอร์ที่ชำระเงินแล้วออกจาก `orders`
+      await connection.query(
+        "DELETE FROM orders WHERE table_id = ? AND payment_status = 'unpaid'",
+        [table_id]
+      );
+
+      // ✅ 5. รีเซ็ตสถานะโต๊ะเป็น `available`
+      await connection.query(
+        "UPDATE tables SET status = 'available' WHERE table_id = ?",
+        [table_id]
+      );
+
+      await connection.commit();
+
+      io.emit("order_paid", { table_id });
+
+      res.json({
+        success: true,
+        message: "ชำระเงินสำเร็จ, อัปเดตสต็อก และรีเซ็ตโต๊ะ",
+      });
     } catch (error) {
-      console.error("❌ Error updating payment:", error);
-      res.status(500).json({ success: false, message: "เกิดข้อผิดพลาด", error });
+      if (connection) await connection.rollback();
+      console.error("❌ Error confirming payment:", error);
+      res
+        .status(500)
+        .json({
+          success: false,
+          message: "เกิดข้อผิดพลาด",
+          error: error.message,
+        });
+    } finally {
+      if (connection) connection.release();
     }
   });
-  
+
   return router;
 };

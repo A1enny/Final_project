@@ -77,16 +77,36 @@ module.exports = (io) => {
 
   // ✅ เพิ่มโต๊ะใหม่
   router.post("/", async (req, res) => {
+    const { table_number, seats } = req.body;
+
+    // 🛠 ตรวจสอบค่า ถ้าไม่มีค่าให้ตั้งค่าเริ่มต้นเป็น "available"
+    const status = "available";
+
+    console.log("📌 รับข้อมูลจาก Frontend:", req.body);
+
+    if (!table_number || !seats) {
+      return res
+        .status(400)
+        .json({ success: false, message: "ข้อมูลไม่ครบถ้วน" });
+    }
+
     try {
-      const { table_number, seats, status } = req.body;
       await db.query(
         "INSERT INTO tables (table_number, seats, status) VALUES (?, ?, ?)",
-        [table_number, seats, status]
+        [table_number, seats, status] // ✅ กำหนดค่า default ให้ status
       );
-      res.status(201).json({ message: "โต๊ะถูกเพิ่มสำเร็จ" });
+
+      console.log("✅ เพิ่มโต๊ะสำเร็จ");
+      res.json({ success: true, message: "เพิ่มโต๊ะสำเร็จ!" });
     } catch (error) {
-      console.error("❌ Error adding table:", error);
-      res.status(500).json({ error: "Server error" });
+      console.error("❌ เพิ่มโต๊ะผิดพลาด:", error);
+      res
+        .status(500)
+        .json({
+          success: false,
+          message: "เกิดข้อผิดพลาดในการเพิ่มโต๊ะ",
+          error,
+        });
     }
   });
 
@@ -138,6 +158,19 @@ module.exports = (io) => {
     } catch (error) {
       console.error("❌ Error fetching tables:", error);
       res.status(500).json({ error: "Error fetching tables" });
+    }
+  });
+  router.put("/:id/reset", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await db.query(
+        "UPDATE tables SET status = 'available' WHERE table_id = ?",
+        [id]
+      );
+      res.json({ success: true, message: "โต๊ะถูกรีเซ็ตเป็น available แล้ว" });
+    } catch (error) {
+      console.error("❌ Error resetting table:", error);
+      res.status(500).json({ error: "Server error" });
     }
   });
 

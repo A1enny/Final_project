@@ -60,4 +60,14 @@ router.get("/", async (req, res) => {
   }
 });
 
+router.get("/inventory", async (req, res) => {
+  try {
+    const [ingredients] = await db.query("SELECT * FROM ingredients");
+    res.json(ingredients);
+  } catch (error) {
+    console.error("❌ Error fetching inventory:", error);
+    res.status(500).json({ error: "เกิดข้อผิดพลาดในการดึงข้อมูลวัตถุดิบ" });
+  }
+});
+
 module.exports = router;
