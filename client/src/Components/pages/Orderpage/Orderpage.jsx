@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom"; // ⬅️ ใช้เพื่อดึง table_id จาก URL
-import axios from "../../Api/axios";
+import axios from "../../../Api/axios";
 import socket from "../../Api/socket";
 import Swal from "sweetalert2";
 import "./Orderpage.scss";

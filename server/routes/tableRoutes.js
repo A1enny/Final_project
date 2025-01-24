@@ -173,6 +173,16 @@ module.exports = (io) => {
       res.status(500).json({ error: "Server error" });
     }
   });
-
+  
+  router.get("/updates", async (req, res) => {
+    try {
+      const [tables] = await db.query("SELECT * FROM tables");
+      res.json(tables);
+    } catch (error) {
+      console.error("❌ Error fetching table updates:", error);
+      res.status(500).json({ error: "เกิดข้อผิดพลาดในการโหลดข้อมูลโต๊ะ" });
+    }
+  });
+  
   return router;
 };

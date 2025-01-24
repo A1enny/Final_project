@@ -62,6 +62,13 @@ module.exports = (io) => {
         .json({ success: false, message: "ตะกร้าว่างเปล่า" });
     }
 
+    if (!orders || orders.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "❌ ไม่มีออร์เดอร์ที่ต้องชำระเงิน",
+      });
+    }
+
     let connection;
     try {
       // ✅ ใช้ getConnection() เพื่อใช้ Transaction
@@ -237,7 +244,12 @@ module.exports = (io) => {
               `วัตถุดิบไม่พอ: ingredient_id=${ingredient.ingredient_id}`
             );
           }
-
+          if (ingredient.current_quantity * 1000 < amountToDeduct) {
+            return res.status(400).json({
+              success: false,
+              message: `❌ วัตถุดิบไม่เพียงพอ: ${ingredient.ingredient_id}`,
+            });
+          }
           console.log(
             `🔹 ลดวัตถุดิบ: ingredient_id = ${ingredient.ingredient_id}, ลด = ${amountToDeduct} g`
           );
