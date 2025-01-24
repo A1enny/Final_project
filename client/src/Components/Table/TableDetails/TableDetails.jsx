@@ -9,17 +9,17 @@ import Swal from "sweetalert2";
 
 import jsPDF from "jspdf";
 import "jspdf-autotable";
-import QRCode from "react-qr-code"; // ✅ ใช้ react-qr-code ที่ถูกต้อง
+import QRCode from "react-qr-code";
 
 // ✅ ฟังก์ชันสร้างใบเสร็จ
 const generateReceipt = (orders, table) => {
   const doc = new jsPDF();
 
-  doc.setFont("helvetica", "bold");
+  doc.setFont("THSarabunNew", "bold");
   doc.setFontSize(16);
-  doc.text("BK GROUP", 14, 10);
+  doc.text("เเมวมองร้านอาหารญี่ปุ่น", 14, 10);
   doc.setFontSize(12);
-  doc.text("BKGROUP", 14, 18);
+  doc.text("เเมวมองร้านอาหารญี่ปุ่น", 14, 18);
   doc.text("TEL: 089-9550001", 14, 24);
 
   doc.setFontSize(14);
@@ -34,11 +34,11 @@ const generateReceipt = (orders, table) => {
   let totalAmount = 0;
   orders.forEach((order) => {
     const rowData = [
-      order.recipe_name,
-      order.quantity, // ✅ ตรวจสอบให้ใช้ `quantity` ไม่ใช่ `total_quantity`
-      `${Number(order.total_price).toFixed(2)} บาท`,
+      order.itemName,
+      order.quantity,
+      `${Number(order.price).toFixed(2)} บาท`,
     ];
-    totalAmount += order.total_price;
+    totalAmount += order.price;
     tableRows.push(rowData);
   });
 
@@ -48,16 +48,8 @@ const generateReceipt = (orders, table) => {
     startY: 55,
   });
 
-  doc.text(
-    `รวมเป็นเงิน: ${totalAmount.toFixed(2)} บาท`,
-    14,
-    doc.lastAutoTable.finalY + 10
-  );
-  doc.text(
-    `ยอดชำระสุทธิ: ${totalAmount.toFixed(2)} บาท`,
-    14,
-    doc.lastAutoTable.finalY + 20
-  );
+  doc.text(`รวมเป็นเงิน: ${totalAmount.toFixed(2)} บาท`, 14, doc.lastAutoTable.finalY + 10);
+  doc.text(`ยอดชำระสุทธิ: ${totalAmount.toFixed(2)} บาท`, 14, doc.lastAutoTable.finalY + 20);
 
   const currentDate = new Date().toLocaleString();
   doc.text(currentDate, 14, doc.lastAutoTable.finalY + 30);
@@ -73,23 +65,11 @@ const TableDetails = () => {
   const [totalPrice, setTotalPrice] = useState(0);
   const [isPaid, setIsPaid] = useState(false);
   const promptPayNumber = "0657317994"; // เปลี่ยนเป็น PromptPay จริง
-  const fetchTableDetails = async () => {
-    try {
-      const response = await axios.get(
-        `http://localhost:3002/api/tables/${table_id}`
-      );
-      setTable(response.data);
-    } catch (error) {
-      console.error("❌ ดึงข้อมูลโต๊ะผิดพลาด:", error);
-    }
-  };
 
   useEffect(() => {
     const fetchTableDetails = async () => {
       try {
-        const response = await axios.get(
-          `http://localhost:3002/api/tables/${table_id}`
-        );
+        const response = await axios.get(`http://localhost:3002/api/tables/${table_id}`);
         setTable(response.data);
       } catch (error) {
         console.error("❌ ดึงข้อมูลโต๊ะผิดพลาด:", error);
@@ -98,16 +78,9 @@ const TableDetails = () => {
 
     const fetchOrders = async () => {
       try {
-        const response = await axios.get(
-          `http://localhost:3002/api/orders?table_id=${table_id}`
-        );
+        const response = await axios.get(`http://localhost:3002/api/orders?table_id=${table_id}`);
         if (Array.isArray(response.data)) {
           setOrders(response.data);
-          const total = response.data.reduce(
-            (sum, order) => sum + Number(order.total_price),
-            0
-          );
-          setTotalPrice(total);
         } else {
           console.error("❌ ค่าที่ได้จาก API ไม่ใช่ array:", response.data);
         }
@@ -145,16 +118,9 @@ const TableDetails = () => {
         table_id,
       });
 
-      // ✅ แจ้งเตือนว่าชำระเงินสำเร็จ
       Swal.fire("✅ ชำระเงินสำเร็จ!", "บันทึกยอดขายแล้ว", "success");
-
-      // ✅ รีโหลดสถานะโต๊ะให้เป็น available
       fetchTableDetails();
-
-      // ✅ รีโหลดข้อมูลคลังวัตถุดิบ
       fetchInventory();
-
-      // ✅ รีเซ็ตข้อมูลหน้าเว็บ
       setOrders([]);
       setTotalPrice(0);
       setIsPaid(false);
@@ -167,6 +133,26 @@ const TableDetails = () => {
   if (!table) {
     return <p>⏳ กำลังโหลดข้อมูล...</p>;
   }
+
+  // ✅ รวมออร์เดอร์ที่ซ้ำกัน
+  const groupedOrders = orders.reduce((acc, order) => {
+    const existingOrder = acc.find((item) => item.itemName.trim() === order.itemName.trim());
+
+    if (existingOrder) {
+      existingOrder.quantity += Number(order.quantity) || 0;
+      existingOrder.price += (Number(order.price) || 0) * (Number(order.quantity) || 0);
+    } else {
+      acc.push({
+        itemName: order.itemName.trim(),
+        quantity: Number(order.quantity) || 0,
+        price: (Number(order.price) || 0) * (Number(order.quantity) || 0),
+      });
+    }
+    return acc;
+  }, []);
+
+  // ✅ คำนวณยอดรวมใหม่
+  const newTotalPrice = groupedOrders.reduce((sum, order) => sum + order.price, 0);
 
   return (
     <div className="TableDetails-container">
@@ -191,11 +177,11 @@ const TableDetails = () => {
               </tr>
             </thead>
             <tbody>
-              {orders.map((order, index) => (
-                <tr key={index}>
-                  <td>{order.recipe_name || "❌ ไม่มีข้อมูล"}</td>
+              {groupedOrders.map((order, index) => (
+                <tr key={order.itemName || index}>
+                  <td>{order.itemName}</td>
                   <td>{order.quantity}</td>
-                  <td>{Number(order.total_price).toFixed(2)} บาท</td>
+                  <td>{Number(order.price).toFixed(2)} บาท</td>
                 </tr>
               ))}
             </tbody>
@@ -203,29 +189,17 @@ const TableDetails = () => {
         ) : (
           <p>ยังไม่มีออร์เดอร์</p>
         )}
-        <h3>💰 ยอดรวม: {totalPrice.toFixed(2)} บาท</h3>
-        
+        <h3 className="total-price">💰 ยอดรวม: {newTotalPrice.toFixed(2)} บาท</h3>
+
         {!isPaid && (
           <div>
             <h2>📱 ชำระเงินผ่าน QR Code</h2>
-            <img
-              src={`https://promptpay.io/${promptPayNumber}/${totalPrice}.png`}
-              alt="QR Code สำหรับชำระเงิน"
-              width="200"
-            />
-
-            <p>📸 สแกนเพื่อชำระเงิน</p>
+            <QRCode value={`https://promptpay.io/${promptPayNumber}/${newTotalPrice}`} />
             <button onClick={handlePaymentConfirm}>✅ ยืนยันการชำระเงิน</button>
           </div>
         )}
-        {!isPaid && (
-          <button onClick={handlePaymentConfirm}>💵 รับเงินสด</button>
-        )}
-        {isPaid && (
-          <button onClick={() => generateReceipt(orders, table)}>
-            🖨️ พิมพ์ใบเสร็จ
-          </button>
-        )}
+        {!isPaid && <button onClick={handlePaymentConfirm}>💵 รับเงินสด</button>}
+        {isPaid && <button onClick={() => generateReceipt(groupedOrders, table)}>🖨️ พิมพ์ใบเสร็จ</button>}
         <button onClick={() => navigate(-1)}>⬅️ กลับ</button>
       </div>
     </div>

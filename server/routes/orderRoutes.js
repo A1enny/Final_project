@@ -8,23 +8,22 @@ module.exports = (io) => {
     try {
       const { table_id } = req.query;
       let query = `
-      SELECT 
-        r.recipe_name,  
-        SUM(o.quantity) AS total_quantity,
-        SUM(o.total_price) AS total_price
-      FROM orders o
-      LEFT JOIN menus m ON o.menu_id = m.menu_id
-      LEFT JOIN recipes r ON m.recipe_id = r.recipe_id
-      WHERE o.table_id = ?
-      GROUP BY r.recipe_name
-      ORDER BY MAX(o.created_at) DESC
-    `;
+            SELECT 
+                r.recipe_name AS itemName,
+                SUM(o.quantity) AS quantity,  -- รวมจำนวนที่สั่ง
+                SUM(o.total_price) AS price   -- รวมราคารวม
+            FROM orders o
+            JOIN menus m ON o.menu_id = m.menu_id
+            JOIN recipes r ON m.recipe_id = r.recipe_id
+            WHERE o.table_id = ?
+            GROUP BY r.recipe_name  -- จัดกลุ่มตามชื่อเมนู
+        `;
 
       const [orders] = await db.query(query, [table_id]);
       res.json(orders);
     } catch (error) {
       console.error("❌ Error fetching orders:", error);
-      res.status(500).json({ error: "เกิดข้อผิดพลาดในการดึงข้อมูลคำสั่งซื้อ" });
+      res.status(500).json({ error: "เกิดข้อผิดพลาดในการดึงข้อมูลออร์เดอร์" });
     }
   });
 
@@ -293,13 +292,11 @@ module.exports = (io) => {
     } catch (error) {
       if (connection) await connection.rollback();
       console.error("❌ Error confirming payment:", error);
-      res
-        .status(500)
-        .json({
-          success: false,
-          message: "เกิดข้อผิดพลาด",
-          error: error.message,
-        });
+      res.status(500).json({
+        success: false,
+        message: "เกิดข้อผิดพลาด",
+        error: error.message,
+      });
     } finally {
       if (connection) connection.release();
     }

@@ -33,7 +33,8 @@ const userRoutes = require("./routes/userRoutes")(io);
 const menuRoutes = require("./routes/menuRoutes");
 const categoryRoutes = require("./routes/categoryRoutes");
 const ingredientRoutes = require("./routes/ingredientRoutes");
-
+const saleRoutes = require("./routes/saleRoutes");
+app.use("/api/sales", saleRoutes);
 app.use("/api/ingredients", ingredientRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/menus", menuRoutes);
