@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require("../config/db.js");
 
 module.exports = (io) => {
+<<<<<<< HEAD
   // ✅ ดึงรายการออร์เดอร์ทั้งหมด
   router.get("/", async (req, res) => {
     try {
@@ -118,6 +119,40 @@ module.exports = (io) => {
   });
 
   // ✅ อัปเดตสถานะออเดอร์แบบเรียลไทม์ (Server-Sent Events - SSE)
+=======
+  router.get("/", (req, res) => {
+    res.send("Orders API is working!");
+  });
+
+  router.post("/", (req, res) => {
+    const { table_id, session_id, menu_id, quantity, price } = req.body;
+    const orderQuantity = quantity || 1;
+    const totalPrice = price * orderQuantity;
+
+    const sql =
+      "INSERT INTO orders (table_id, menu_id, quantity, total_price, status, payment_status, session_id) VALUES (?, ?, ?, ?, 'pending', 'unpaid', ?)";
+
+    db.query(
+      sql,
+      [table_id, menu_id, orderQuantity, totalPrice, session_id],
+      (err, result) => {
+        if (err) {
+          console.error("❌ Error placing order:", err);
+          return res
+            .status(500)
+            .json({ success: false, message: "เกิดข้อผิดพลาดในการสั่งอาหาร" });
+        }
+
+        // 📡 แจ้งเตือน WebSocket
+        io.emit("new_order", { table_id, session_id });
+
+        res.status(201).json({ success: true, message: "สั่งอาหารสำเร็จ!" });
+      }
+    );
+  });
+  
+  // ✅ Server-Sent Events (SSE) สำหรับอัปเดตสถานะออเดอร์แบบเรียลไทม์
+>>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
   router.get("/updates", (req, res) => {
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
@@ -138,6 +173,7 @@ module.exports = (io) => {
     req.on("close", () => clearInterval(interval));
   });
 
+<<<<<<< HEAD
   // ✅ ดึงออร์เดอร์ของโต๊ะที่กำหนด
   router.get("/", async (req, res) => {
     try {
@@ -311,6 +347,79 @@ module.exports = (io) => {
       });
     } finally {
       if (connection) connection.release();
+=======
+  // ✅ ดึงรายการออเดอร์ของโต๊ะ
+  router.get("/:table_id", async (req, res) => {
+    const { table_id } = req.params;
+    const { session_id } = req.query;
+
+    try {
+      const [orders] = await db.query(
+        "SELECT * FROM orders WHERE table_id = ? AND session_id = ?",
+        [table_id, session_id]
+      );
+
+      res.json(orders);
+    } catch (error) {
+      console.error("❌ Error fetching orders:", error);
+      res.status(500).json({ error: "Error fetching orders" });
+    }
+  });
+
+  // ✅ สั่งอาหาร
+  router.post("/", (req, res) => {
+    const { table_id, session_id, menu_id, quantity, price } = req.body;
+    const orderQuantity = quantity || 1;
+    const totalPrice = price * orderQuantity;
+
+    const sql =
+      "INSERT INTO orders (table_id, menu_id, quantity, total_price, status, payment_status, session_id) VALUES (?, ?, ?, ?, 'pending', 'unpaid', ?)";
+
+    db.query(
+      sql,
+      [table_id, menu_id, orderQuantity, totalPrice, session_id],
+      (err, result) => {
+        if (err) {
+          console.error("❌ Error placing order:", err);
+          return res
+            .status(500)
+            .json({ success: false, message: "เกิดข้อผิดพลาดในการสั่งอาหาร" });
+        }
+        res.status(201).json({ success: true, message: "สั่งอาหารสำเร็จ!" });
+      }
+    );
+  });
+
+  router.post("/bulk", async (req, res) => {
+    const { table_id, session_id, orders } = req.body;
+    if (!orders || orders.length === 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "ตะกร้าว่างเปล่า" });
+    }
+
+    const values = orders.map(({ menu_id, quantity, price }) => [
+      table_id,
+      menu_id,
+      quantity,
+      price * quantity,
+      session_id,
+    ]);
+
+    try {
+      await db.query(
+        "INSERT INTO orders (table_id, menu_id, quantity, total_price, status, payment_status, session_id) VALUES ?",
+        [values]
+      );
+
+      // 📡 แจ้งเตือน WebSocket
+      io.emit("new_order", { table_id, session_id });
+
+      res.status(201).json({ success: true, message: "สั่งอาหารสำเร็จ!" });
+    } catch (error) {
+      console.error("❌ Error placing bulk order:", error);
+      res.status(500).json({ success: false, message: "เกิดข้อผิดพลาด" });
+>>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
     }
   });
 

@@ -7,6 +7,7 @@ export default defineConfig({
 
   server: {
     host: '0.0.0.0', // เปิดให้ทุกอุปกรณ์ในเครือข่ายเข้าถึงได้
+<<<<<<< HEAD
     port: 5173,
     proxy:{
       "/api":{
@@ -15,5 +16,8 @@ export default defineConfig({
         secure: false,
       }
     }
+=======
+    port: 5173
+>>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
   }
 });
