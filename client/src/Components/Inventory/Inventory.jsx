@@ -20,16 +20,21 @@ const Inventory = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const { data: ingredientsRes } = await axios.get("http://localhost:3002/api/ingredients", {
-        params: {
-          page: currentPage,
-          limit: 10,
-          searchTerm: searchTerm || "",
-          category: selectedCategory || "",
-        },
-      });
+      const { data: ingredientsRes } = await axios.get(
+        "http://localhost:3002/api/ingredients",
+        {
+          params: {
+            page: currentPage,
+            limit: 10,
+            searchTerm: searchTerm || "",
+            category: selectedCategory || "",
+          },
+        }
+      );
 
-      const { data: categoriesRes } = await axios.get("http://localhost:3002/api/categories");
+      const { data: categoriesRes } = await axios.get(
+        "http://localhost:3002/api/categories"
+      );
 
       setIngredients(ingredientsRes.results || []);
       setCategories(categoriesRes || []);
@@ -93,7 +98,10 @@ const Inventory = () => {
 
         {/* ตัวกรองและช่องค้นหา */}
         <div className="Inventory-filters">
-          <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+          >
             <option value="">ทุกหมวดหมู่</option>
             {categories.map((category) => (
               <option key={category.category_id} value={category.category_id}>
@@ -129,12 +137,7 @@ const Inventory = () => {
                 ingredients.map((ingredient, index) => {
                   const itemNumber = (currentPage - 1) * 10 + index + 1;
                   let displayQuantity = ingredient.quantity;
-                  let unit = "kg";
-
-                  if (ingredient.quantity <= 0.999) {
-                    displayQuantity = ingredient.quantity * 1000;
-                    unit = "g (กรัม)";
-                  }
+                  let unit = "g"; // ใช้หน่วยเป็นกรัมเสมอ
 
                   return (
                     <tr key={ingredient.ingredient_id}>
@@ -145,10 +148,16 @@ const Inventory = () => {
                         {displayQuantity} {unit}
                       </td>
                       <td>
-                        <button className="edit-btn" onClick={() => handleEdit(ingredient)}>
+                        <button
+                          className="edit-btn"
+                          onClick={() => handleEdit(ingredient)}
+                        >
                           แก้ไข
                         </button>
-                        <button className="delete-btn" onClick={() => handleDelete(ingredient.ingredient_id)}>
+                        <button
+                          className="delete-btn"
+                          onClick={() => handleDelete(ingredient.ingredient_id)}
+                        >
                           ลบ
                         </button>
                       </td>
@@ -157,7 +166,9 @@ const Inventory = () => {
                 })
               ) : (
                 <tr>
-                  <td colSpan="5" style={{ textAlign: "center" }}>ไม่มีข้อมูล</td>
+                  <td colSpan="5" style={{ textAlign: "center" }}>
+                    ไม่มีข้อมูล
+                  </td>
                 </tr>
               )}
             </tbody>
@@ -166,11 +177,19 @@ const Inventory = () => {
 
         {/* Pagination */}
         <div className="pagination">
-          <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1 || loading}>
+          <button
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1 || loading}
+          >
             <MdArrowBackIos />
           </button>
-          <span>{currentPage} / {totalPages}</span>
-          <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages || loading}>
+          <span>
+            {currentPage} / {totalPages}
+          </span>
+          <button
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages || loading}
+          >
             <MdArrowForwardIos />
           </button>
         </div>

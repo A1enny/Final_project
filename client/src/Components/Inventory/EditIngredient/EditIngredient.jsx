@@ -9,8 +9,7 @@ const EditIngredient = () => {
   const { id } = useParams(); // รับ id จาก URL
   const [ingredient, setIngredient] = useState(null);
   const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true); // ใช้เพื่อเช็คว่าโหลดข้อมูลอยู่หรือไม่
-  const [unit, setUnit] = useState("kg"); // Default is kg (kilograms)
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -18,7 +17,6 @@ const EditIngredient = () => {
       try {
         const res = await axios.get(`http://localhost:3002/api/ingredients/${id}`);
         setIngredient(res.data);
-        setUnit(res.data.quantity <= 1 ? "g" : "kg"); // กำหนดหน่วยเริ่มต้นตามจำนวน
         const categoriesRes = await axios.get("http://localhost:3002/api/categories");
         setCategories(categoriesRes.data);
         setLoading(false);
@@ -31,24 +29,18 @@ const EditIngredient = () => {
   }, [id]);
 
   const handleUpdate = async (e) => {
-    e.preventDefault(); // ป้องกันการรีเฟรชหน้า
+    e.preventDefault();
 
-    // ถ้าเลือกเป็นกรัม ให้แปลงจำนวนจากกรัมเป็นกิโลกรัม
-    let updatedQuantity = ingredient.quantity;
-    if (unit === "g") {
-      updatedQuantity = updatedQuantity / 1000; // แปลงจากกรัมเป็นกิโลกรัม
-    } else {
-      updatedQuantity = updatedQuantity * 1000; // แปลงจากกิโลกรัมเป็นกรัม
-    }
+    let updatedQuantity = parseFloat(ingredient.quantity); // ✅ ใช้ค่าเดิมตรง ๆ เป็นกรัม
 
     try {
       await axios.put(`http://localhost:3002/api/ingredients/${id}`, {
         ingredient_name: ingredient.ingredient_name,
         category_id: ingredient.category_id,
-        quantity: updatedQuantity, // ส่งจำนวนที่แปลงแล้ว
+        quantity: updatedQuantity, // ✅ ส่งค่าเป็นกรัมโดยตรง
       });
       alert("แก้ไขวัตถุดิบสำเร็จ!");
-      navigate("/inventory"); // กลับไปยังหน้า Inventory
+      navigate("/inventory");
     } catch (error) {
       console.error("Error updating ingredient:", error);
       alert("เกิดข้อผิดพลาดในการแก้ไขวัตถุดิบ");
@@ -56,7 +48,7 @@ const EditIngredient = () => {
   };
 
   if (loading) {
-    return <div>Loading...</div>; // ถ้ากำลังโหลดข้อมูล
+    return <div>Loading...</div>;
   }
 
   if (!ingredient) {
@@ -94,27 +86,18 @@ const EditIngredient = () => {
           </div>
 
           <div className="form-group">
-            <label>จำนวน</label>
+            <label>จำนวน (กรัม)</label>
             <input
               type="number"
               value={ingredient.quantity}
               onChange={(e) => setIngredient({ ...ingredient, quantity: e.target.value })}
             />
           </div>
-          <div className="form-group">
-            <label>หน่วย:</label>
-            <select
-              value={unit}
-              onChange={(e) => setUnit(e.target.value)}
-              required
-            >
-              <option value="kg">กิโลกรัม (kg)</option>
-              <option value="g">กรัม (g)</option>
-            </select>
-          </div>
 
           <button type="submit" className="submit-btn">บันทึกการแก้ไข</button>
-          <button type="button" className="cancel-btn" onClick={() => navigate("/inventory")}>ยกเลิก</button>
+          <button type="button" className="cancel-btn" onClick={() => navigate("/inventory")}>
+            ยกเลิก
+          </button>
         </form>
       </div>
     </div>

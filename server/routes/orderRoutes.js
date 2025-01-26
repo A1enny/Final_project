@@ -182,125 +182,112 @@ module.exports = (io) => {
     const { table_id } = req.body;
 
     if (!table_id) {
-      return res
-        .status(400)
-        .json({ success: false, message: "ต้องระบุ table_id" });
+        return res.status(400).json({ success: false, message: "ต้องระบุ table_id" });
     }
 
     let connection;
     try {
-      connection = await db.getConnection();
-      await connection.beginTransaction();
+        connection = await db.getConnection();
+        await connection.beginTransaction();
 
-      // ✅ 1. ดึงรายการออร์เดอร์ของโต๊ะนี้
-      const [orders] = await connection.query(
-        `SELECT o.menu_id, o.quantity, o.total_price 
-         FROM orders o 
-         WHERE o.table_id = ? AND o.payment_status = 'unpaid'`,
-        [table_id]
-      );
-
-      if (orders.length === 0) {
-        throw new Error("ไม่มีออร์เดอร์ที่ต้องชำระเงิน");
-      }
-
-      // ✅ 2. หักจำนวนวัตถุดิบตามสูตรอาหาร
-      for (const order of orders) {
-        const [ingredientResults] = await connection.query(
-          `SELECT ri.ingredient_id, ri.amount, i.quantity AS current_quantity
-           FROM recipe_ingredients ri
-           JOIN menus m ON ri.recipe_id = m.recipe_id
-           JOIN ingredients i ON ri.ingredient_id = i.ingredient_id
-           WHERE m.menu_id = ?`,
-          [order.menu_id]
+        // ✅ 1. ดึงรายการออร์เดอร์ของโต๊ะนี้
+        const [orders] = await connection.query(
+            `SELECT o.menu_id, o.quantity, o.total_price 
+             FROM orders o 
+             WHERE o.table_id = ? AND o.payment_status = 'unpaid'`,
+            [table_id]
         );
 
-        if (!ingredientResults || ingredientResults.length === 0) {
-          console.warn(`⚠️ ไม่มีวัตถุดิบที่ต้องลดสำหรับเมนู ${order.menu_id}`);
-          continue;
+        if (orders.length === 0) {
+            throw new Error("ไม่มีออร์เดอร์ที่ต้องชำระเงิน");
         }
 
-        for (const ingredient of ingredientResults) {
-          // 🔹 **ตรวจสอบหน่วยของวัตถุดิบ**
-          let currentQuantity = ingredient.current_quantity * 1000; // แปลงจาก kg เป็น g
-          let amountToDeduct = ingredient.amount * order.quantity * 1000; // แปลงจาก kg เป็น g
-
-          console.log(
-            `🔹 ก่อนลด ingredient_id=${ingredient.ingredient_id}, คงเหลือ=${currentQuantity} g`
-          );
-
-          if (currentQuantity < amountToDeduct) {
-            console.error(
-              `⚠️ วัตถุดิบไม่พอ ingredient_id=${ingredient.ingredient_id}, ต้องการ=${amountToDeduct} g, คงเหลือ=${currentQuantity} g`
+        // ✅ 2. หักจำนวนวัตถุดิบตามสูตรอาหาร (ใช้หน่วยเป็น "กรัม" เท่านั้น)
+        for (const order of orders) {
+            const [ingredientResults] = await connection.query(
+                `SELECT ri.ingredient_id, ri.amount, i.quantity AS current_quantity
+                 FROM recipe_ingredients ri
+                 JOIN menus m ON ri.recipe_id = m.recipe_id
+                 JOIN ingredients i ON ri.ingredient_id = i.ingredient_id
+                 WHERE m.menu_id = ?`,
+                [order.menu_id]
             );
-            throw new Error(
-              `วัตถุดิบไม่พอ: ingredient_id=${ingredient.ingredient_id}`
-            );
-          }
 
-          console.log(
-            `🔹 ลดวัตถุดิบ: ingredient_id = ${ingredient.ingredient_id}, ลด = ${amountToDeduct} g`
-          );
+            if (!ingredientResults || ingredientResults.length === 0) {
+                console.warn(`⚠️ ไม่มีวัตถุดิบที่ต้องลดสำหรับเมนู ${order.menu_id}`);
+                continue;
+            }
 
-          // ✅ **อัปเดตจำนวนวัตถุดิบในหน่วยกิโลกรัม**
-          let newQuantity = (currentQuantity - amountToDeduct) / 1000; // แปลงกลับเป็น kg
+            for (const ingredient of ingredientResults) {
+                let currentQuantity = parseFloat(ingredient.current_quantity); // ✅ ใช้ค่าตรงๆ ในหน่วย "กรัม"
+                let amountToDeduct = parseFloat(ingredient.amount) * order.quantity; // ✅ ใช้ค่าตรงๆ
 
-          await connection.query(
-            "UPDATE ingredients SET quantity = ? WHERE ingredient_id = ?",
-            [newQuantity, ingredient.ingredient_id]
-          );
+                console.log(`🔹 ก่อนลด ingredient_id=${ingredient.ingredient_id}, คงเหลือ=${currentQuantity} g`);
 
-          const [updatedIngredient] = await connection.query(
-            "SELECT quantity FROM ingredients WHERE ingredient_id = ?",
-            [ingredient.ingredient_id]
-          );
+                if (currentQuantity < amountToDeduct) {
+                    console.error(`⚠️ วัตถุดิบไม่พอ ingredient_id=${ingredient.ingredient_id}, ต้องการ=${amountToDeduct} g, คงเหลือ=${currentQuantity} g`);
+                    throw new Error(`วัตถุดิบไม่พอ: ingredient_id=${ingredient.ingredient_id}`);
+                }
 
-          console.log(
-            `✅ หลังลด ingredient_id=${ingredient.ingredient_id}, คงเหลือ=${updatedIngredient[0].quantity} kg`
-          );
+                console.log(`🔹 ลดวัตถุดิบ: ingredient_id = ${ingredient.ingredient_id}, ลด = ${amountToDeduct} g`);
+
+                // ✅ อัปเดตสต็อกให้ถูกต้อง
+                let newQuantity = currentQuantity - amountToDeduct;
+                await connection.query(
+                    "UPDATE ingredients SET quantity = ? WHERE ingredient_id = ?",
+                    [newQuantity, ingredient.ingredient_id]
+                );
+
+                // ✅ ดึงค่าล่าสุดของวัตถุดิบหลังจากอัปเดต
+                const [updatedIngredient] = await connection.query(
+                    "SELECT quantity FROM ingredients WHERE ingredient_id = ?",
+                    [ingredient.ingredient_id]
+                );
+
+                console.log(`✅ หลังลด ingredient_id=${ingredient.ingredient_id}, คงเหลือ=${updatedIngredient[0].quantity} g`);
+            }
         }
-      }
 
-      // ✅ 3. บันทึกยอดขาย
-      for (const order of orders) {
+        // ✅ 3. บันทึกยอดขาย
+        for (const order of orders) {
+            await connection.query(
+                "INSERT INTO sales (table_id, menu_id, quantity, total_price, sale_date) VALUES (?, ?, ?, ?, NOW())",
+                [table_id, order.menu_id, order.quantity, order.total_price]
+            );
+        }
+
+        // ✅ 4. ลบออร์เดอร์ที่ชำระเงินแล้วออกจาก `orders`
         await connection.query(
-          "INSERT INTO sales (table_id, menu_id, quantity, total_price, sale_date) VALUES (?, ?, ?, ?, NOW())",
-          [table_id, order.menu_id, order.quantity, order.total_price]
+            "DELETE FROM orders WHERE table_id = ? AND payment_status = 'unpaid'",
+            [table_id]
         );
-      }
 
-      // ✅ 4. ลบออร์เดอร์ที่ชำระเงินแล้วออกจาก `orders`
-      await connection.query(
-        "DELETE FROM orders WHERE table_id = ? AND payment_status = 'unpaid'",
-        [table_id]
-      );
+        // ✅ 5. รีเซ็ตสถานะโต๊ะเป็น `available`
+        await connection.query(
+            "UPDATE tables SET status = 'available' WHERE table_id = ?",
+            [table_id]
+        );
 
-      // ✅ 5. รีเซ็ตสถานะโต๊ะเป็น `available`
-      await connection.query(
-        "UPDATE tables SET status = 'available' WHERE table_id = ?",
-        [table_id]
-      );
+        await connection.commit();
 
-      await connection.commit();
+        io.emit("order_paid", { table_id });
 
-      io.emit("order_paid", { table_id });
-
-      res.json({
-        success: true,
-        message: "ชำระเงินสำเร็จ, อัปเดตสต็อก และรีเซ็ตโต๊ะ",
-      });
+        res.json({
+            success: true,
+            message: "ชำระเงินสำเร็จ, อัปเดตสต็อก และรีเซ็ตโต๊ะ",
+        });
     } catch (error) {
-      if (connection) await connection.rollback();
-      console.error("❌ Error confirming payment:", error);
-      res.status(500).json({
-        success: false,
-        message: "เกิดข้อผิดพลาด",
-        error: error.message,
-      });
+        if (connection) await connection.rollback();
+        console.error("❌ Error confirming payment:", error);
+        res.status(500).json({
+            success: false,
+            message: "เกิดข้อผิดพลาด",
+            error: error.message,
+        });
     } finally {
-      if (connection) connection.release();
+        if (connection) connection.release();
     }
-  });
+});
 
   return router;
 };

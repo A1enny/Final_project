@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import Navbar from "../../Layout/Navbar/Navbar";
 import Sidebar from "../../Layout/Sidebar/Sidebar";
 import axios from "axios";
-import "./TableDetails.scss"
+import Swal from "sweetalert2";
+import "./TableDetails.scss";
 
 const TableDetails = () => {
   const { tableId } = useParams();
@@ -11,23 +12,37 @@ const TableDetails = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // ดึงข้อมูลรายละเอียดโต๊ะและรายการออเดอร์
-    const fetchTableDetails = async () => {
-      try {
-        const tableRes = await axios.get(`/api/tables/${tableId}`);
-        const ordersRes = await axios.get(`/api/orders/${tableId}`);
-        setTableDetails(tableRes.data);
-        setOrders(Array.isArray(ordersRes.data) ? ordersRes.data : []); // ตรวจสอบให้แน่ใจว่าเป็น array
-      } catch (error) {
-        console.error("เกิดข้อผิดพลาดในการดึงข้อมูลโต๊ะ:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // ✅ ฟังก์ชันดึงข้อมูลโต๊ะและรายการออเดอร์
+  const fetchTableDetails = useCallback(async () => {
+    try {
+      const tableRes = await axios.get(`/api/tables/${tableId}`);
+      const ordersRes = await axios.get(`/api/orders?table_id=${tableId}`);
+      setTableDetails(tableRes.data);
+      setOrders(Array.isArray(ordersRes.data) ? ordersRes.data : []);
+    } catch (error) {
+      console.error("❌ เกิดข้อผิดพลาดในการดึงข้อมูลโต๊ะ:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [tableId]); // ✅ ใช้ useCallback เพื่อให้แน่ใจว่าฟังก์ชันนี้มีอยู่เสมอ
 
+  useEffect(() => {
     fetchTableDetails();
-  }, [tableId]);
+  }, [fetchTableDetails]); // ✅ แก้ไขให้ไม่มี Warning
+
+  // ✅ ฟังก์ชันยืนยันการชำระเงิน
+  const handlePaymentConfirm = async () => {
+    try {
+      await axios.put("/api/orders/confirm-payment", { table_id: tableId });
+
+      Swal.fire("สำเร็จ", "ชำระเงินเรียบร้อย!", "success").then(() => {
+        fetchTableDetails(); // ✅ โหลดข้อมูลใหม่หลังชำระเงิน
+      });
+    } catch (error) {
+      console.error("❌ Error confirming payment:", error);
+      Swal.fire("Error", "ไม่สามารถบันทึกยอดขายได้", "error");
+    }
+  };
 
   if (loading) return <p>กำลังโหลดข้อมูล...</p>;
 
@@ -71,6 +86,18 @@ const TableDetails = () => {
             <p>ยังไม่มีออเดอร์สำหรับโต๊ะนี้</p>
           )}
         </div>
+
+        {/* ✅ ปุ่มยืนยันการชำระเงิน */}
+        {orders.length > 0 && (
+          <div className="payment-section">
+            <button
+              className="confirm-payment-btn"
+              onClick={handlePaymentConfirm}
+            >
+              ✅ ยืนยันการชำระเงิน
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

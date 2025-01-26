@@ -18,10 +18,14 @@ const Recipe = () => {
       try {
         const response = await axios.get("http://localhost:3002/api/recipes");
         console.log("📢 API Response:", response.data);
-
-        const fetchedRecipes = response.data.results || response.data; // ✅ รองรับทุก API Response format
+    
+        const fetchedRecipes = response.data.results || response.data;
         if (Array.isArray(fetchedRecipes)) {
-          setRecipes(fetchedRecipes);
+          setRecipes(fetchedRecipes.map((recipe) => ({
+            ...recipe,
+            image: recipe.image ? recipe.image : "/images/default.jpg",
+            ingredients: recipe.ingredients || [],
+          })));
         } else {
           console.error("❌ Unexpected response format:", response.data);
           setRecipes([]);
@@ -30,8 +34,7 @@ const Recipe = () => {
         console.error("❌ Error fetching recipes:", error);
         setRecipes([]);
       }
-    };
-
+    };   
     fetchRecipes();
   }, []);
 

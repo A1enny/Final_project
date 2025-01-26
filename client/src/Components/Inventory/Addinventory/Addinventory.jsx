@@ -10,7 +10,6 @@ const AddInventory = () => {
   const [categories, setCategories] = useState([]);
   const [categoryId, setCategoryId] = useState("");
   const [quantity, setQuantity] = useState("");
-  const [unit, setUnit] = useState("kg"); // Default is kg (kilograms)
   const navigate = useNavigate();
 
   // Fetch categories for the dropdown
@@ -31,18 +30,14 @@ const AddInventory = () => {
       alert("กรุณากรอกข้อมูลให้ครบถ้วน");
       return;
     }
-
-    let quantityInKg = parseFloat(quantity);
-    // If unit is 'g', convert the quantity to kg
-    if (unit === "g") {
-      quantityInKg = quantityInKg / 1000; // Convert grams to kilograms
-    }
-
+  
+    let quantityInGrams = parseFloat(quantity); // ✅ ไม่ต้องคูณ 1000
+  
     try {
       await axios.post("http://localhost:3002/api/ingredients", {
         ingredient_name: ingredientName,
         category_id: parseInt(categoryId),
-        quantity: quantityInKg, // Store quantity in kg
+        quantity: quantityInGrams, // ✅ ส่งค่าเป็นกรัมตรง ๆ
       });
       alert("เพิ่มวัตถุดิบสำเร็จ!");
       navigate("/inventory");
@@ -50,7 +45,7 @@ const AddInventory = () => {
       console.error("Error adding ingredient:", error);
       alert("เกิดข้อผิดพลาดในการเพิ่มวัตถุดิบ");
     }
-  };
+  };  
 
   return (
     <div className="add-inventory-container">
@@ -85,7 +80,7 @@ const AddInventory = () => {
             </select>
           </div>
           <div className="form-group">
-            <label>จำนวน:</label>
+            <label>จำนวน (กรัม):</label>
             <input
               type="number"
               placeholder="กรอกจำนวน"
@@ -94,26 +89,17 @@ const AddInventory = () => {
               required
             />
           </div>
-          <div className="form-group">
-            <label>หน่วย:</label>
-            <select
-              value={unit}
-              onChange={(e) => setUnit(e.target.value)}
-              required
-            >
-              <option value="kg">กิโลกรัม (kg)</option>
-              <option value="g">กรัม (g)</option>
-            </select>
-          </div>
           <div className="Buttonn">
             <button
-            type="button"
-            className="submit-btn"
-            onClick={handleAddIngredient}
-          >
-            เพิ่มวัตถุดิบ
-          </button>
-          <button type="button" className="cancel-btn" onClick={() => navigate("/inventory")}>ยกเลิก</button>
+              type="button"
+              className="submit-btn"
+              onClick={handleAddIngredient}
+            >
+              เพิ่มวัตถุดิบ
+            </button>
+            <button type="button" className="cancel-btn" onClick={() => navigate("/inventory")}>
+              ยกเลิก
+            </button>
           </div>
         </form>
       </div>
