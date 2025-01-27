@@ -34,12 +34,8 @@ function App() {
 
         {/* Protected Routes for Admin only */}
         <Route element={<ProtectedRoute allowedRoles={["admin"]} />}>
-<<<<<<< HEAD
           <Route path="/ManageUsers" element={<ManageUsers />} />
           <Route path="/addrecipe/:id" element={<Addrecipe />} />
-=======
-          <Route path="/manage-users" element={<ManageUsers />} />
->>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
         </Route>
 
         {/* Protected Routes for Admin and Staff */}
@@ -50,11 +46,7 @@ function App() {
           <Route path="/report" element={<Report />} />
           <Route path="/table" element={<Tables />} />
           <Route path="/edit-table/:id" element={<EditTable />} />
-<<<<<<< HEAD
           <Route path="/table-details/:table_id" element={<TableDetails />} />
-=======
-          <Route path="/table-details/:tableId" element={<TableDetails />} />
->>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
           <Route path="/start-table/:tableId" element={<StartTable />} />
         </Route>
 

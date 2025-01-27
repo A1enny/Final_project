@@ -5,33 +5,20 @@ const db = require("./config/db");
 const socketIo = require("./socket.js");
 const multer = require("multer");
 const path = require("path");
-<<<<<<< HEAD
-=======
-const http = require("http");
-const db = require("./config/db.js");
-const socket = require("./socket");
->>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
 
 const app = express();
 const server = http.createServer(app);
 
-<<<<<<< HEAD
 // Initialize Socket.IO
 const io = socketIo.init(server);
 
 // ✅ เปิด CORS
 app.use(cors({
   origin: "*",
-=======
-// ✅ เปิด CORS
-app.use(cors({
-  origin: ["http://localhost:5173", "http://192.168.1.44:5173"],
->>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
   methods: ["GET", "POST", "PUT", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
-<<<<<<< HEAD
 // Middleware
 app.use(express.json()); // Replaces bodyParser.json()
 app.use(express.urlencoded({ extended: true })); // Replaces bodyParser.urlencoded()
@@ -51,26 +38,6 @@ app.use("/api/sales", saleRoutes);
 app.use("/api/ingredients", ingredientRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/menus", menuRoutes);
-=======
-// ✅ ใช้ `socket.init(server)` แค่ครั้งเดียว
-socket.init(server);
-const io = socket.getIO(); // ✅ ดึง `io` จาก `socket.js`
-
-// Middleware
-app.use(bodyParser.json());
-app.use('/uploads/recipes', express.static('uploads/recipes'));
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-
-// ✅ ใช้ `io` ที่ถูกต้องกับ Routes
-const orderRoutes = require("./routes/orderRoutes")(io);
-const tableRoutes = require("./routes/tableRoutes")(io);
-const userRoutes = require("./routes/userRoutes");
-const menuRoutes = require("./routes/menuRoutes");
-
-
-app.use("/api/menus", menuRoutes);
-app.use("/api/menu_category", menuRoutes);  // ✅ เพิ่ม API หมวดหมู่
->>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
 app.use("/api/orders", orderRoutes);
 app.use("/api/tables", tableRoutes);
 app.use("/api/users", userRoutes);

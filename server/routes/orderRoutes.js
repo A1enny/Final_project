@@ -3,7 +3,7 @@ const router = express.Router();
 const db = require("../config/db.js");
 
 module.exports = (io) => {
-<<<<<<< HEAD
+
   // ✅ ดึงรายการออร์เดอร์ทั้งหมด
   router.get("/", async (req, res) => {
     try {
@@ -119,7 +119,7 @@ module.exports = (io) => {
   });
 
   // ✅ อัปเดตสถานะออเดอร์แบบเรียลไทม์ (Server-Sent Events - SSE)
-=======
+
   router.get("/", (req, res) => {
     res.send("Orders API is working!");
   });
@@ -152,7 +152,7 @@ module.exports = (io) => {
   });
   
   // ✅ Server-Sent Events (SSE) สำหรับอัปเดตสถานะออเดอร์แบบเรียลไทม์
->>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
+
   router.get("/updates", (req, res) => {
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
@@ -173,7 +173,7 @@ module.exports = (io) => {
     req.on("close", () => clearInterval(interval));
   });
 
-<<<<<<< HEAD
+
   // ✅ ดึงออร์เดอร์ของโต๊ะที่กำหนด
   router.get("/", async (req, res) => {
     try {
