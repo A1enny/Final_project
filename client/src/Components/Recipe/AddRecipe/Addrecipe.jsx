@@ -20,10 +20,24 @@ const Addrecipe = () => {
   });
 
   const [ingredients, setIngredients] = useState([]);
+<<<<<<< HEAD
+=======
+  const [ingredient, setIngredient] = useState({
+    ingredient_id: null,
+    name: "",
+    quantity: "",
+    unit: "กรัม",
+  });
+
+>>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
   const [ingredientOptions, setIngredientOptions] = useState([]);
   const [selectedIngredient, setSelectedIngredient] = useState(null);
   const [quantity, setQuantity] = useState("");
 
+<<<<<<< HEAD
+=======
+  // ✅ โหลดหมวดหมู่อาหาร (menu_category) และวัตถุดิบ (ingredients) ครั้งเดียว
+>>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -36,14 +50,26 @@ const Addrecipe = () => {
             label: item.ingredient_name,
           }))
         );
+
+        setCategoryOptions(
+          categoriesRes.data.map((item) => ({
+            value: item.category_id,
+            label: item.category_name,
+          }))
+        );
       } catch (error) {
-        Swal.fire("Error", "ไม่สามารถดึงข้อมูลวัตถุดิบได้", "error");
+        Swal.fire(
+          "Error",
+          "ไม่สามารถดึงข้อมูลวัตถุดิบหรือหมวดหมู่ได้",
+          "error"
+        );
       }
     };
 
     fetchData();
   }, []);
 
+<<<<<<< HEAD
   useEffect(() => {
     if (!id) return;
 
@@ -62,17 +88,28 @@ const Addrecipe = () => {
             ? recipeData.image // ถ้าเป็น URL เต็มอยู่แล้ว ให้ใช้ค่าปัจจุบัน
             : `http://localhost:3002/uploads/recipes/${recipeData.image}`, // ถ้าไม่ใช่ URL เต็ม ให้เติม path
         }));
-        
+
         setIngredients(
           recipeData.ingredients.map((ing) => ({
             ingredient_id: ing.ingredient_id,
-            name: ing.name || "ไม่พบชื่อ",
-            quantity: ing.quantity || 0,
-            type: ing.type || "ไม่ระบุ",
+            name: ing.ingredient_name && ing.ingredient_name !== "null"
+              ? ing.ingredient_name
+              : "ไม่พบชื่อ", // ✅ ป้องกันชื่อหาย
+            quantity: ing.amount || 0,
+            unit: ing.unit || "กรัม",
           }))
         );
       } catch (error) {
         console.error("❌ Error fetching recipe:", error);
+=======
+            name: ing.name,
+            quantity: ing.quantity,
+            unit: ing.unit,
+          }))
+        );
+      } catch (error) {
+        console.error("Error fetching recipe:", error);
+>>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
         Swal.fire("Error", "ไม่สามารถโหลดข้อมูลสูตรอาหารได้", "error");
       }
     };
@@ -80,8 +117,20 @@ const Addrecipe = () => {
     fetchRecipe();
   }, [id]);
 
+<<<<<<< HEAD
   const handleIngredientSelect = (selectedOption) => {
     setSelectedIngredient(selectedOption);
+=======
+  // ✅ เลือกวัตถุดิบ
+  const handleIngredientSelect = (selectedOption) => {
+    if (!selectedOption) return;
+
+    setIngredient((prev) => ({
+      ...prev,
+      ingredient_id: selectedOption.value,
+      name: selectedOption.label,
+    }));
+>>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
   };
 
   const handleQuantityChange = (e) => {
@@ -94,6 +143,7 @@ const Addrecipe = () => {
       return;
     }
 
+<<<<<<< HEAD
     setIngredients((prev) => [
       ...prev,
       {
@@ -104,15 +154,14 @@ const Addrecipe = () => {
     ]);
 
     setSelectedIngredient(null);
-    setQuantity("");
-  };
-
-  const removeIngredient = (index) => {
-    setIngredients((prev) => prev.filter((_, i) => i !== index));
   };
 
   const submitRecipe = async () => {
+<<<<<<< HEAD
     if (!recipe.recipe_name || ingredients.length === 0) {
+=======
+    if (!recipe.recipe_name || !recipe.category_id || ingredients.length === 0) {
+>>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
       Swal.fire("Error", "กรุณากรอกข้อมูลให้ครบถ้วนทุกช่อง", "error");
       return;
     }
@@ -120,15 +169,17 @@ const Addrecipe = () => {
     try {
       const formData = new FormData();
       formData.append("recipe_name", recipe.recipe_name);
-      formData.append("category_id", recipe.category_id || "");
-      formData.append("ingredients", JSON.stringify(ingredients));
+      formData.append("category_id", recipe.category_id || ""); // ✅ ป้องกันค่า null
 
       if (recipe.image) {
         formData.append("image", recipe.image);
-      } else if (recipe.image_url && !recipe.image_url.includes("default.jpg")) {
-        formData.append("image_url", recipe.image_url); // ใช้ URL เดิมหากมี
-      }    
+      } else {
+        formData.append("image", recipe.image_url.split("/").pop()); // ✅ ใช้รูปเดิมหากไม่มีอัปโหลดใหม่
+      }
 
+      formData.append("ingredients", JSON.stringify(ingredients));
+
+      // ✅ แก้ไข Syntax Error
       const url = id
         ? `http://localhost:3002/api/recipes/${id}`
         : "http://localhost:3002/api/recipes";
@@ -147,6 +198,10 @@ const Addrecipe = () => {
       );
     } catch (error) {
       console.error("❌ Error submitting recipe:", error);
+=======
+    } catch (error) {
+      console.error("❌ Error submitting recipe:", error.response?.data || error.message);
+>>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
       Swal.fire("Error", "เกิดข้อผิดพลาดในการบันทึกสูตรอาหาร", "error");
     }
   };
@@ -158,6 +213,10 @@ const Addrecipe = () => {
       <div className="add-recipe-content">
         <h2>{title}</h2>
         <form className="create-form">
+<<<<<<< HEAD
+=======
+          
+>>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
           {/* ✅ อัปโหลดรูปภาพ */}
           <div className="form-section">
             <label>อัปโหลดรูปภาพ</label>
@@ -180,22 +239,51 @@ const Addrecipe = () => {
                 src={recipe.image_url}
                 alt="Preview"
                 className="recipe-preview"
+                style={{
+                  maxWidth: "600px",
+                  maxHeight: "350px",
+                  objectFit: "cover",
+                }}
               />
             )}
           </div>
 
+=======
+                
+              />
+            )}
+          </div>
+  
+>>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
           {/* ✅ ชื่อสูตรอาหาร และหมวดหมู่ */}
           <div className="form-section">
             <label>ชื่อสูตรอาหาร</label>
             <input
               type="text"
               value={recipe.recipe_name}
-              onChange={(e) =>
-                setRecipe({ ...recipe, recipe_name: e.target.value })
-              }
+              onChange={(e) => setRecipe({ ...recipe, recipe_name: e.target.value })}
             />
+  
+            {/* <div className="form-group">
+              <label>หมวดหมู่อาหาร</label>
+              <Select
+                options={categoryOptions}
+                value={categoryOptions.find((opt) => opt.value === recipe.category_id) || null}
+                onChange={(selectedOption) =>
+                  setRecipe((prev) => ({
+                    ...prev,
+                    category_id: selectedOption?.value || null,
+                  }))
+                }
+                placeholder="เลือกหมวดหมู่..."
+              />
+            </div> */}
           </div>
+<<<<<<< HEAD
 
+=======
+  
+>>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
           {/* ✅ วัตถุดิบ */}
           <div className="form-section">
             <h3>วัตถุดิบ</h3>
@@ -204,33 +292,60 @@ const Addrecipe = () => {
                 <label>ชื่อวัตถุดิบ</label>
                 <Select
                   options={ingredientOptions}
-                  value={selectedIngredient || null}
+                  value={selectedIngredient}
                   onChange={handleIngredientSelect}
                   placeholder="ค้นหาวัตถุดิบ..."
                 />
               </div>
+<<<<<<< HEAD
 
+=======
+  
+>>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
               <div className="form-group">
                 <label>ปริมาณ</label>
                 <input
                   type="number"
                   name="quantity"
                   min="0"
-                  value={quantity}
-                  onChange={handleQuantityChange}
+                  value={selectedIngredient?.quantity || ""}
+                  onChange={handleIngredientQuantityChange}
                 />
               </div>
+
+              <div className="form-group">
+                <label>หน่วย</label>
+                <Select
+                  options={unitOptions}
+                  value={
+                    unitOptions.find(
+                      (opt) => opt.value === selectedIngredient?.unit
+                    ) || null
+                  }
+                  onChange={handleIngredientUnitChange}
+                  placeholder="เลือกหน่วย..."
+                />
+              </div>
+<<<<<<< HEAD
 
               <button
                 type="button"
                 className="btn add-btn"
                 onClick={addIngredient} // ✅ ใช้ชื่อฟังก์ชันที่ถูกต้อง
               >
+=======
+  
+              <button type="button" className="btn add-btn" onClick={addIngredients}>
+>>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
                 เพิ่มวัตถุดิบ
               </button>
             </div>
           </div>
+<<<<<<< HEAD
 
+=======
+  
+>>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
           {/* ✅ แสดงรายการวัตถุดิบที่เพิ่มแล้ว */}
           {ingredients.length > 0 && (
             <div className="ingredient-list">
@@ -247,17 +362,21 @@ const Addrecipe = () => {
                 <tbody>
                   {ingredients.map((ing, index) => (
                     <tr key={index}>
-                      <td>{ing.name.trim()}</td>
+                      <td>{ing.name}</td>
                       <td>{ing.quantity}</td>
-                      <td>{ing.unit || "กรัม"}</td>
+                      <td>{ing.unit}</td>
                       <td>
                         <button
                           type="button"
                           className="btn delete-btn"
                           onClick={() =>
+<<<<<<< HEAD
                             setIngredients(
                               ingredients.filter((_, i) => i !== index)
                             )
+=======
+                            setIngredients(ingredients.filter((_, i) => i !== index))
+>>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
                           }
                         >
                           ลบ
@@ -269,21 +388,12 @@ const Addrecipe = () => {
               </table>
             </div>
           )}
-
           {/* ✅ ปุ่มยกเลิกและยืนยัน */}
           <div className="form-buttons">
-            <button
-              type="button"
-              className="btn cancel-btn"
-              onClick={() => navigate("/recipe")}
-            >
+            <button type="button" className="btn cancel-btn" onClick={() => navigate("/recipe")}>
               ยกเลิก
             </button>
-            <button
-              type="button"
-              className="btn save-btn"
-              onClick={submitRecipe}
-            >
+            <button type="button" className="btn save-btn" onClick={submitRecipe}>
               ยืนยัน
             </button>
           </div>
@@ -291,6 +401,7 @@ const Addrecipe = () => {
       </div>
     </div>
   );
+  
 };
 
 export default Addrecipe;

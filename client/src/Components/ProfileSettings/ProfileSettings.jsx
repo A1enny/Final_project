@@ -27,11 +27,50 @@ const ProfileSettings = () => {
     confirmPassword: "",
   });
 
+<<<<<<< HEAD
   const imageUrl = formData.profileImage?.startsWith("http")
     ? formData.profileImage
     : formData.profileImage
     ? `http://localhost:3002${formData.profileImage}`
     : "http://localhost:3002/uploads/default.png";
+=======
+  const handleUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("profileImage", file);
+
+    try {
+      const res = await axios.post(
+        `http://localhost:3002/api/users/upload-profile/${userId}`,
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+
+      const newProfileImage = res.data.profileImageUrl;
+      console.log("✅ รูปโปรไฟล์ที่อัปโหลด:", newProfileImage);
+
+      // ✅ อัปเดต State
+      setFormData((prev) => ({ ...prev, profileImage: newProfileImage }));
+
+      // ✅ บันทึกลง Local Storage
+      localStorage.setItem("profileImage", newProfileImage);
+
+      Swal.fire("✅ อัปโหลดรูปสำเร็จ!", "", "success");
+    } catch (error) {
+      Swal.fire("❌ อัปโหลดรูปไม่สำเร็จ!", "", "error");
+    }
+  };
+
+  useEffect(() => {
+    const storedProfileImage = localStorage.getItem("profileImage");
+    console.log("🔍 รูปที่โหลดจาก Local Storage:", storedProfileImage);
+    if (storedProfileImage) {
+      setFormData((prev) => ({ ...prev, profileImage: storedProfileImage }));
+    }
+  }, []);
+>>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
 
   useEffect(() => {
     const storedUserId = localStorage.getItem("user_id");
@@ -56,12 +95,22 @@ const ProfileSettings = () => {
         email: res.data.email || "",
         phone: res.data.phone_number || "",
         address: res.data.address || "",
+<<<<<<< HEAD
         profileImage: res.data.profile_image || "",
         role: res.data.role || "",
       });
 
       localStorage.setItem("profileImage", res.data.profile_image || "");
       localStorage.setItem("role", res.data.role || "");
+=======
+        profileImage: res.data.profile_image || "", // ✅ เพิ่ม profileImage
+      });
+
+      // ✅ บันทึกลง Local Storage เพื่อให้โหลดได้ตอนรีเฟรช
+      if (res.data.profile_image) {
+        localStorage.setItem("profileImage", res.data.profile_image);
+      }
+>>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
     } catch (error) {
       Swal.fire("❌ เกิดข้อผิดพลาด", "ไม่สามารถโหลดข้อมูลได้", "error");
     }
@@ -123,8 +172,17 @@ const ProfileSettings = () => {
     }
   };
 
+<<<<<<< HEAD
   const handlePasswordChange = async () => {
     if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+=======
+  const handleChangePassword = async () => {
+    if (
+      !passwordData.currentPassword ||
+      !passwordData.newPassword ||
+      !passwordData.confirmPassword
+    ) {
+>>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
       Swal.fire("❌ กรุณากรอกรหัสผ่านให้ครบถ้วน!", "", "error");
       return;
     }
@@ -161,10 +219,22 @@ const ProfileSettings = () => {
         <div className="profile-header">
           <img
             className="profile-pic"
+<<<<<<< HEAD
             src={imageUrl}
             alt="Profile"
             style={{ width: "100px", height: "100px", borderRadius: "50%" }}
           />
+=======
+            src={
+              formData.profileImage
+                ? `http://localhost:3002${formData.profileImage}`
+                : ""
+            }
+            alt="Profile"
+            style={{ width: "100px", height: "100px", borderRadius: "50%" }}
+          />
+
+>>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
           <div className="profile-info">
             <h1>ตั้งค่าโปรไฟล์</h1>
             <p>
@@ -174,6 +244,7 @@ const ProfileSettings = () => {
         </div>
 
         <div className="nav-tabs">
+<<<<<<< HEAD
           <button
             className={activeTab === "My details" ? "active" : ""}
             onClick={() => setActiveTab("My details")}
@@ -186,6 +257,17 @@ const ProfileSettings = () => {
           >
             Change Password
           </button>
+=======
+          {["My details", "Password"].map((tab) => (
+            <button
+              key={tab}
+              className={activeTab === tab ? "active-tab" : ""}
+              onClick={() => setActiveTab(tab)}
+            >
+              {tab}
+            </button>
+          ))}
+>>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
         </div>
 
         {activeTab === "My details" && (
@@ -195,6 +277,33 @@ const ProfileSettings = () => {
               <div className="form-group">
                 <label>Profile Picture</label>
                 <input type="file" accept="image/*" onChange={handleUpload} />
+<<<<<<< HEAD
+=======
+              </div>
+
+              {formData.profileImage && (
+                <img
+                  className="profile-pic"
+                  src={`http://localhost:3002${formData.profileImage}`}
+                  alt="Profile"
+                  style={{
+                    width: "100px",
+                    height: "100px",
+                    borderRadius: "8px",
+                  }}
+                />
+              )}
+
+              <div className="form-group">
+                <label>Full Name</label>
+                <input
+                  type="text"
+                  name="fullName"
+                  value={formData.fullName}
+                  onChange={handleInputChange}
+                  disabled={!editMode}
+                />
+>>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
               </div>
 
               <div className="form-group">
@@ -216,6 +325,29 @@ const ProfileSettings = () => {
                   value={formData.email}
                   disabled
                 />
+<<<<<<< HEAD
+=======
+              </div>
+              <div className="form-group">
+                <label>Phone Number</label>
+                <input
+                  type="text"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                  disabled={!editMode}
+                />
+              </div>
+              <div className="form-group">
+                <label>Address</label>
+                <input
+                  type="text"
+                  name="address"
+                  value={formData.address}
+                  onChange={handleInputChange}
+                  disabled={!editMode}
+                />
+>>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
               </div>
 
               <div className="buttons">
@@ -259,6 +391,7 @@ const ProfileSettings = () => {
                 <input
                   type="password"
                   name="currentPassword"
+<<<<<<< HEAD
                   value={passwordData.currentPassword}
                   onChange={(e) =>
                     setPasswordData({
@@ -266,6 +399,9 @@ const ProfileSettings = () => {
                       currentPassword: e.target.value,
                     })
                   }
+=======
+                  onChange={handlePasswordChange}
+>>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
                 />
               </div>
 
@@ -274,6 +410,7 @@ const ProfileSettings = () => {
                 <input
                   type="password"
                   name="newPassword"
+<<<<<<< HEAD
                   value={passwordData.newPassword}
                   onChange={(e) =>
                     setPasswordData({
@@ -281,6 +418,9 @@ const ProfileSettings = () => {
                       newPassword: e.target.value,
                     })
                   }
+=======
+                  onChange={handlePasswordChange}
+>>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
                 />
               </div>
 
@@ -289,6 +429,7 @@ const ProfileSettings = () => {
                 <input
                   type="password"
                   name="confirmPassword"
+<<<<<<< HEAD
                   value={passwordData.confirmPassword}
                   onChange={(e) =>
                     setPasswordData({
@@ -297,6 +438,19 @@ const ProfileSettings = () => {
                     })
                   }
                 />
+=======
+                  onChange={handlePasswordChange}
+                />
+              </div>
+              <div className="buttons">
+                <button
+                  type="button"
+                  className="save-button"
+                  onClick={handleChangePassword}
+                >
+                  Change Password
+                </button>
+>>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
               </div>
 
               <button

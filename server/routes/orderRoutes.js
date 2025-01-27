@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require("../config/db.js");
 
 module.exports = (io) => {
+<<<<<<< HEAD
   // ✅ ดึงรายการออร์เดอร์ทั้งหมด
   router.get("/", async (req, res) => {
     try {
@@ -62,6 +63,13 @@ module.exports = (io) => {
         .json({ success: false, message: "ตะกร้าว่างเปล่า" });
     }
 
+    if (!orders || orders.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "❌ ไม่มีออร์เดอร์ที่ต้องชำระเงิน",
+      });
+    }
+
     let connection;
     try {
       // ✅ ใช้ getConnection() เพื่อใช้ Transaction
@@ -111,6 +119,40 @@ module.exports = (io) => {
   });
 
   // ✅ อัปเดตสถานะออเดอร์แบบเรียลไทม์ (Server-Sent Events - SSE)
+=======
+  router.get("/", (req, res) => {
+    res.send("Orders API is working!");
+  });
+
+  router.post("/", (req, res) => {
+    const { table_id, session_id, menu_id, quantity, price } = req.body;
+    const orderQuantity = quantity || 1;
+    const totalPrice = price * orderQuantity;
+
+    const sql =
+      "INSERT INTO orders (table_id, menu_id, quantity, total_price, status, payment_status, session_id) VALUES (?, ?, ?, ?, 'pending', 'unpaid', ?)";
+
+    db.query(
+      sql,
+      [table_id, menu_id, orderQuantity, totalPrice, session_id],
+      (err, result) => {
+        if (err) {
+          console.error("❌ Error placing order:", err);
+          return res
+            .status(500)
+            .json({ success: false, message: "เกิดข้อผิดพลาดในการสั่งอาหาร" });
+        }
+
+        // 📡 แจ้งเตือน WebSocket
+        io.emit("new_order", { table_id, session_id });
+
+        res.status(201).json({ success: true, message: "สั่งอาหารสำเร็จ!" });
+      }
+    );
+  });
+  
+  // ✅ Server-Sent Events (SSE) สำหรับอัปเดตสถานะออเดอร์แบบเรียลไทม์
+>>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
   router.get("/updates", (req, res) => {
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
@@ -131,6 +173,7 @@ module.exports = (io) => {
     req.on("close", () => clearInterval(interval));
   });
 
+<<<<<<< HEAD
   // ✅ ดึงออร์เดอร์ของโต๊ะที่กำหนด
   router.get("/", async (req, res) => {
     try {
@@ -224,19 +267,26 @@ module.exports = (io) => {
 
                 console.log(`🔹 ก่อนลด ingredient_id=${ingredient.ingredient_id}, คงเหลือ=${currentQuantity} g`);
 
-                if (currentQuantity < amountToDeduct) {
-                    console.error(`⚠️ วัตถุดิบไม่พอ ingredient_id=${ingredient.ingredient_id}, ต้องการ=${amountToDeduct} g, คงเหลือ=${currentQuantity} g`);
-                    throw new Error(`วัตถุดิบไม่พอ: ingredient_id=${ingredient.ingredient_id}`);
-                }
+          if (currentQuantity < amountToDeduct) {
+            console.error(
+              `⚠️ วัตถุดิบไม่พอ ingredient_id=${ingredient.ingredient_id}, ต้องการ=${amountToDeduct} g, คงเหลือ=${currentQuantity} g`
+            );
+            throw new Error(
+              `วัตถุดิบไม่พอ: ingredient_id=${ingredient.ingredient_id}`
+            );
+          }
 
-                console.log(`🔹 ลดวัตถุดิบ: ingredient_id = ${ingredient.ingredient_id}, ลด = ${amountToDeduct} g`);
+          console.log(
+            `🔹 ลดวัตถุดิบ: ingredient_id = ${ingredient.ingredient_id}, ลด = ${amountToDeduct} g`
+          );
 
-                // ✅ อัปเดตสต็อกให้ถูกต้อง
-                let newQuantity = currentQuantity - amountToDeduct;
-                await connection.query(
-                    "UPDATE ingredients SET quantity = ? WHERE ingredient_id = ?",
-                    [newQuantity, ingredient.ingredient_id]
-                );
+          // ✅ **อัปเดตจำนวนวัตถุดิบในหน่วยกิโลกรัม**
+          let newQuantity = (currentQuantity - amountToDeduct) / 1000; // แปลงกลับเป็น kg
+
+          await connection.query(
+            "UPDATE ingredients SET quantity = ? WHERE ingredient_id = ?",
+            [newQuantity, ingredient.ingredient_id]
+          );
 
                 // ✅ ดึงค่าล่าสุดของวัตถุดิบหลังจากอัปเดต
                 const [updatedIngredient] = await connection.query(
@@ -285,7 +335,7 @@ module.exports = (io) => {
             error: error.message,
         });
     } finally {
-        if (connection) connection.release();
+      if (connection) connection.release();
     }
 });
 

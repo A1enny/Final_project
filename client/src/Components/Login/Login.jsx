@@ -32,8 +32,12 @@ const Login = () => {
         // ✅ บันทึก role ลง Local Storage อย่างถูกต้อง
         localStorage.setItem("user_id", response.data.user.id);
         localStorage.setItem("username", response.data.user.username);
+<<<<<<< HEAD
         localStorage.setItem("role", response.data.user.role); // ✅ แก้ตรงนี้
   
+=======
+        localStorage.setItem("role", response.data.role);
+>>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
         sessionStorage.setItem("isLoggedIn", "true");
   
         alert("✅ เข้าสู่ระบบสำเร็จ!");

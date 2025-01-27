@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "../../Api/axios/";
 import socket from "../../Api/socket";
@@ -14,7 +14,6 @@ import QRCode from "react-qr-code";
 // ✅ ฟังก์ชันสร้างใบเสร็จ
 const generateReceipt = (orders, table) => {
   const doc = new jsPDF();
-
   doc.setFont("THSarabunNew", "bold");
   doc.setFontSize(16);
   doc.text("เเมวมองร้านอาหารญี่ปุ่น", 14, 10);
@@ -33,20 +32,12 @@ const generateReceipt = (orders, table) => {
 
   let totalAmount = 0;
   orders.forEach((order) => {
-    const rowData = [
-      order.itemName,
-      order.quantity,
-      `${Number(order.price).toFixed(2)} บาท`,
-    ];
+    const rowData = [order.itemName, order.quantity, `${Number(order.price).toFixed(2)} บาท`];
     totalAmount += order.price;
     tableRows.push(rowData);
   });
 
-  doc.autoTable({
-    head: [tableColumn],
-    body: tableRows,
-    startY: 55,
-  });
+  doc.autoTable({ head: [tableColumn], body: tableRows, startY: 55 });
 
   doc.text(`รวมเป็นเงิน: ${totalAmount.toFixed(2)} บาท`, 14, doc.lastAutoTable.finalY + 10);
   doc.text(`ยอดชำระสุทธิ: ${totalAmount.toFixed(2)} บาท`, 14, doc.lastAutoTable.finalY + 20);
@@ -64,18 +55,23 @@ const TableDetails = () => {
   const [orders, setOrders] = useState([]);
   const [totalPrice, setTotalPrice] = useState(0);
   const [isPaid, setIsPaid] = useState(false);
-  const promptPayNumber = "0657317994"; // เปลี่ยนเป็น PromptPay จริง
+  const promptPayNumber = "0657317994";
+
+  // ✅ แก้ไขโดยใช้ useCallback เพื่อป้องกันฟังก์ชันถูกสร้างใหม่บ่อยๆ
+  const fetchTableDetails = useCallback(async () => {
+    try {
+      const response = await axios.get(`http://localhost:3002/api/tables/${table_id}`);
+      setTable(response.data);
+    } catch (error) {
+      console.error("❌ ดึงข้อมูลโต๊ะผิดพลาด:", error);
+    }
+  }, [table_id]);
 
   useEffect(() => {
-    const fetchTableDetails = async () => {
-      try {
-        const response = await axios.get(`http://localhost:3002/api/tables/${table_id}`);
-        setTable(response.data);
-      } catch (error) {
-        console.error("❌ ดึงข้อมูลโต๊ะผิดพลาด:", error);
-      }
-    };
+    fetchTableDetails();
+  }, [fetchTableDetails]);
 
+  useEffect(() => {
     const fetchOrders = async () => {
       try {
         const response = await axios.get(`http://localhost:3002/api/orders?table_id=${table_id}`);
@@ -89,7 +85,6 @@ const TableDetails = () => {
       }
     };
 
-    fetchTableDetails();
     fetchOrders();
 
     socket.on("new_order", (newOrder) => {
@@ -112,6 +107,7 @@ const TableDetails = () => {
     }
   };
 
+  // ✅ ฟังก์ชันนี้สามารถเรียก fetchTableDetails() ได้แล้ว
   const handlePaymentConfirm = async () => {
     try {
       await axios.put("http://localhost:3002/api/orders/confirm-payment", {
@@ -119,7 +115,7 @@ const TableDetails = () => {
       });
 
       Swal.fire("✅ ชำระเงินสำเร็จ!", "บันทึกยอดขายแล้ว", "success");
-      fetchTableDetails();
+      fetchTableDetails();  // ✅ เรียกใช้งานได้แน่นอนแล้ว
       fetchInventory();
       setOrders([]);
       setTotalPrice(0);
@@ -134,7 +130,6 @@ const TableDetails = () => {
     return <p>⏳ กำลังโหลดข้อมูล...</p>;
   }
 
-  // ✅ รวมออร์เดอร์ที่ซ้ำกัน
   const groupedOrders = orders.reduce((acc, order) => {
     const existingOrder = acc.find((item) => item.itemName.trim() === order.itemName.trim());
 
@@ -151,7 +146,6 @@ const TableDetails = () => {
     return acc;
   }, []);
 
-  // ✅ คำนวณยอดรวมใหม่
   const newTotalPrice = groupedOrders.reduce((sum, order) => sum + order.price, 0);
 
   return (
@@ -160,21 +154,13 @@ const TableDetails = () => {
       <Sidebar />
       <div className="TableDetails-content">
         <h1>รายละเอียดโต๊ะ: {table.table_number}</h1>
-        <p>
-          <strong>จำนวนที่นั่ง:</strong> {table.seats}
-        </p>
-        <p>
-          <strong>สถานะ:</strong> {table.status}
-        </p>
+        <p><strong>จำนวนที่นั่ง:</strong> {table.seats}</p>
+        <p><strong>สถานะ:</strong> {table.status}</p>
         <h2>📜 รายการออร์เดอร์</h2>
         {orders.length > 0 ? (
           <table className="order-table">
             <thead>
-              <tr>
-                <th>ชื่อเมนู</th>
-                <th>จำนวน</th>
-                <th>ราคา</th>
-              </tr>
+              <tr><th>ชื่อเมนู</th><th>จำนวน</th><th>ราคา</th></tr>
             </thead>
             <tbody>
               {groupedOrders.map((order, index) => (
@@ -191,13 +177,7 @@ const TableDetails = () => {
         )}
         <h3 className="total-price">💰 ยอดรวม: {newTotalPrice.toFixed(2)} บาท</h3>
 
-        {!isPaid && (
-          <div>
-            <h2>📱 ชำระเงินผ่าน QR Code</h2>
-            <QRCode value={`https://promptpay.io/${promptPayNumber}/${newTotalPrice}`} />
-            <button onClick={handlePaymentConfirm}>✅ ยืนยันการชำระเงิน</button>
-          </div>
-        )}
+        {!isPaid && <button onClick={handlePaymentConfirm}>✅ ยืนยันการชำระเงิน</button>}
         {!isPaid && <button onClick={handlePaymentConfirm}>💵 รับเงินสด</button>}
         {isPaid && <button onClick={() => generateReceipt(groupedOrders, table)}>🖨️ พิมพ์ใบเสร็จ</button>}
         <button onClick={() => navigate(-1)}>⬅️ กลับ</button>

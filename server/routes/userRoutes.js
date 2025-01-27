@@ -24,6 +24,7 @@ module.exports = (io) => {
     },
   });
   const upload = multer({ storage });
+<<<<<<< HEAD
   // 📌 ดึงข้อมูลผู้ใช้ทั้งหมด
   router.get("/", async (req, res) => {
     try {
@@ -66,6 +67,31 @@ module.exports = (io) => {
   router.get("/profile/:id", async (req, res) => {
     try {
       const userId = parseInt(req.params.id, 10);
+=======
+
+  // 📌 อัปโหลดรูปโปรไฟล์
+  router.post("/upload-profile/:id", upload.single("profileImage"), async (req, res) => {
+    try {
+      const userId = req.params.id;
+      if (!req.file) {
+        return res.status(400).json({ message: "❌ กรุณาอัปโหลดไฟล์" });
+      }
+
+      const profileImageUrl = `/uploads/Userprofile/${req.file.filename}`;
+      await db.query("UPDATE users SET profile_image = ? WHERE id = ?", [profileImageUrl, userId]);
+
+      res.json({ message: "✅ อัปโหลดรูปสำเร็จ", profileImageUrl });
+    } catch (error) {
+      console.error("❌ Error uploading profile image:", error);
+      res.status(500).json({ message: "❌ อัปโหลดรูปไม่สำเร็จ" });
+    }
+  });
+
+  // 📌 ดึงข้อมูลโปรไฟล์ผู้ใช้
+  router.get("/profile/:id", async (req, res) => {
+    try {
+      const userId = req.params.id;
+>>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
       if (isNaN(userId)) {
         return res.status(400).json({ message: "❌ Invalid user ID" });
       }
@@ -79,6 +105,7 @@ module.exports = (io) => {
         return res.status(404).json({ message: "❌ User not found" });
       }
 
+<<<<<<< HEAD
       console.log("✅ ดึงข้อมูลผู้ใช้สำเร็จ:", users[0]); // ✅ Debug ข้อมูลที่ได้
       res.json(users[0]);
     } catch (error) {
@@ -86,6 +113,12 @@ module.exports = (io) => {
       res
         .status(500)
         .json({ message: "Error fetching user profile", error: error.message });
+=======
+      res.json(users[0]);
+    } catch (error) {
+      console.error("❌ Error fetching user profile:", error);
+      res.status(500).json({ message: "Error fetching user profile", error: error.message });
+>>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
     }
   });
 
@@ -104,6 +137,7 @@ module.exports = (io) => {
       res.status(500).json({ message: "Error updating profile", error });
     }
   });
+<<<<<<< HEAD
   
   // 📌 เพิ่มผู้ใช้ใหม่ (สมัครสมาชิก)
   router.post("/", async (req, res) => {
@@ -143,12 +177,23 @@ module.exports = (io) => {
         "SELECT password FROM users WHERE id = ?",
         [userId]
       );
+=======
+
+  // 📌 อัปเดตรหัสผ่าน
+  router.put("/password/:id", async (req, res) => {
+    try {
+      const userId = req.params.id;
+      const { currentPassword, newPassword } = req.body;
+
+      const [users] = await db.query("SELECT password FROM users WHERE id = ?", [userId]);
+>>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
       if (!users.length) {
         return res.status(404).json({ message: "❌ ไม่พบผู้ใช้" });
       }
 
       const storedPassword = users[0].password;
       if (currentPassword !== storedPassword) {
+<<<<<<< HEAD
         return res
           .status(400)
           .json({ message: "❌ รหัสผ่านปัจจุบันไม่ถูกต้อง" });
@@ -158,6 +203,12 @@ module.exports = (io) => {
         newPassword,
         userId,
       ]);
+=======
+        return res.status(400).json({ message: "❌ รหัสผ่านปัจจุบันไม่ถูกต้อง" });
+      }
+
+      await db.query("UPDATE users SET password = ? WHERE id = ?", [newPassword, userId]);
+>>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
       res.json({ message: "✅ เปลี่ยนรหัสผ่านเรียบร้อย!" });
     } catch (error) {
       console.error("❌ Error updating password:", error);
@@ -165,6 +216,7 @@ module.exports = (io) => {
     }
   });
 
+<<<<<<< HEAD
   const queryDB = async (sql, params = []) => {
     let connection;
     try {
@@ -207,5 +259,7 @@ module.exports = (io) => {
     }
   });
 
+=======
+>>>>>>> aa67cf38adf46127e5e9cfbd296caddeae48492a
   return router;
 };
