@@ -130,10 +130,9 @@ const Table = () => {
                 <td>{table.table_number}</td>
                 <td>{table.seats}</td>
                 <td><span className={`status ${table.status}`}>{table.status}</span></td>
-                <td><QRCodeCanvas value={`http://192.168.1.44:5173/order/${table.table_id}?guest=true`} size={50} /></td>
                 <td>
                   <QRCodeCanvas
-                    value={`http://192.168.1.44:5173/order/${table.table_id}?guest=true`}
+                    value={`http://192.168.1.43:5173/order/${table.table_id}?guest=true`}
                     size={100}
                   />
                 </td>

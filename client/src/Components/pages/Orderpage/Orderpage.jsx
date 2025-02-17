@@ -1,20 +1,19 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom"; // ⬅️ ใช้เพื่อดึง table_id จาก URL
+import { useParams } from "react-router-dom";
 import axios from "../../../Api/axios";
 import socket from "../../Api/socket";
 import Swal from "sweetalert2";
 import "./Orderpage.scss";
 
 const OrderPage = () => {
-  const { table_id } = useParams(); // ⬅️ ดึงค่า table_id จาก URL
+  const { table_id } = useParams(); // ดึงค่า table_id จาก URL
   const [menu, setMenu] = useState([]);
   const [cart, setCart] = useState([]);
-  const [orders, setOrders] = useState([]);
 
-  // ดึงข้อมูลเมนูจาก API
+  // 📌 โหลดเมนูอาหารจาก API
   useEffect(() => {
     axios
-      .get("http://192.168.1.44:3002/api/menus")
+      .get("http://192.168.1.43:3002/api/menus")
       .then((response) => {
         console.log("📡 เมนูที่ได้รับจาก API:", response.data);
         setMenu(response.data);
@@ -24,8 +23,13 @@ const OrderPage = () => {
       });
   }, []);
 
-  // เพิ่มสินค้าไปยังตะกร้า
+  // 📌 เพิ่มเมนูลงในตะกร้า
   const addToCart = (item) => {
+    if (!item.id) {
+      console.error("❌ menu_id เป็น undefined:", item);
+      return;
+    }
+
     setCart((prevCart) => {
       const existingItem = prevCart.find((i) => i.menu_id === item.id);
       if (existingItem) {
@@ -38,10 +42,10 @@ const OrderPage = () => {
     });
   };
 
-  // ฟังก์ชันสั่งออเดอร์
+  // 📌 สั่งอาหาร
   const placeOrder = async () => {
     if (!table_id) {
-      Swal.fire("เกิดข้อผิดพลาด", "ไม่สามารถระบุโต๊ะได้", "error");
+      Swal.fire("❌ เกิดข้อผิดพลาด", "ไม่พบหมายเลขโต๊ะ กรุณาลองใหม่", "error");
       return;
     }
 
@@ -58,36 +62,47 @@ const OrderPage = () => {
         price: item.price,
       }));
 
+      console.log("📡 ข้อมูลที่ส่งไป Backend:", {
+        table_id,
+        session_id,
+        orders: ordersPayload,
+      });
+
       const response = await axios.post(
-        "http://192.168.1.44:3002/api/orders/bulk",
+        "http://192.168.1.43:3002/api/orders/bulk",
         {
-          table_id: table_id, // ⬅️ ใช้ค่า table_id จาก URL
+          table_id,
           session_id,
           orders: ordersPayload,
         }
       );
 
-      // แจ้งเตือน WebSocket
-      socket.emit("new_order", response.data);
+      if (response.data.success) {
+        // แจ้งเตือน WebSocket
+        socket.emit("new_order", response.data);
 
-      Swal.fire("✅ สั่งซื้อสำเร็จ", "ออเดอร์ของคุณถูกส่งแล้ว", "success").then(
-        () => setCart([]) // เคลียร์ตะกร้าหลังจากสั่งซื้อสำเร็จ
-      );
+        Swal.fire("✅ สั่งซื้อสำเร็จ", "ออเดอร์ของคุณถูกส่งแล้ว", "success").then(
+          () => setCart([]) // ล้างตะกร้า
+        );
+      } else {
+        throw new Error(response.data.message || "เกิดข้อผิดพลาดไม่ทราบสาเหตุ");
+      }
     } catch (error) {
-      console.error("❌ เกิดข้อผิดพลาดในการสั่งซื้อ:", error);
-      Swal.fire("เกิดข้อผิดพลาด", "ไม่สามารถสั่งซื้อได้", "error");
+      console.error("❌ Error placing order:", error.response?.data || error.message);
+      Swal.fire("❌ เกิดข้อผิดพลาด", error.response?.data?.message || "ไม่สามารถสั่งซื้อได้", "error");
     }
   };
+
+  // 📌 อัปเดตจำนวนสินค้าในตะกร้า
   const updateQuantity = (menu_id, quantity) => {
     setCart((prevCart) =>
       prevCart.map((item) =>
         item.menu_id === menu_id
-          ? { ...item, quantity: Math.max(1, quantity) } // ห้ามลดต่ำกว่า 1
+          ? { ...item, quantity: Math.max(1, quantity) }
           : item
       )
     );
   };
-  
 
   return (
     <div className="order-page">
@@ -120,27 +135,15 @@ const OrderPage = () => {
               <h3>{item.name}</h3>
               <p>{Number(item.price).toFixed(2)} บาท</p>
               <div className="quantity-controls">
-                <button
-                  onClick={() =>
-                    updateQuantity(item.menu_id, item.quantity + 1)
-                  }
-                >
+                <button onClick={() => updateQuantity(item.menu_id, item.quantity + 1)}>
                   ➕
                 </button>
                 <span>{item.quantity}</span>
-                <button
-                  onClick={() =>
-                    updateQuantity(item.menu_id, item.quantity - 1)
-                  }
-                >
+                <button onClick={() => updateQuantity(item.menu_id, item.quantity - 1)}>
                   ➖
                 </button>
               </div>
-              <button
-                onClick={() =>
-                  setCart(cart.filter((i) => i.menu_id !== item.menu_id))
-                }
-              >
+              <button onClick={() => setCart(cart.filter((i) => i.menu_id !== item.menu_id))}>
                 ❌ ลบ
               </button>
             </div>
@@ -150,11 +153,7 @@ const OrderPage = () => {
         )}
       </div>
 
-      <button
-        onClick={placeOrder}
-        className="place-order"
-        disabled={cart.length === 0}
-      >
+      <button onClick={placeOrder} className="place-order" disabled={cart.length === 0}>
         {cart.length > 0 ? "✅ สั่งรายการ" : "🛒 เพิ่มสินค้าเพื่อสั่งซื้อ"}
       </button>
     </div>
