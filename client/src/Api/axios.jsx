@@ -1,8 +1,10 @@
 import axios from "axios";
 
 const instance = axios.create({
-  baseURL: "http://119.59.101.86:8000/api", // เปลี่ยน localhost เป็น IP จริง
+  baseURL: "https://119.59.101.86:8000/Api_backend_maw/api/v1/",
   headers: { "Content-Type": "application/json" },
+  withCredentials: true,
 });
+
 
 export default instance;
