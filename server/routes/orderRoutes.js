@@ -30,28 +30,34 @@ module.exports = (io) => {
 
   // ✅ สั่งอาหารแบบรายการเดียว
   router.post("/", async (req, res) => {
-    const { table_id, session_id, menu_id, menu_name, quantity, price } =
-      req.body;
+    const { table_id, session_id, menu_id, quantity, price } = req.body;
+  
+    console.log("📌 ค่าที่ได้รับจาก Frontend:", req.body); // ✅ Debug
+  
+    if (!table_id || !menu_id || !price) {
+      console.error("❌ ข้อมูลไม่ครบ:", req.body);
+      return res.status(400).json({ success: false, message: "กรุณากรอกข้อมูลให้ครบถ้วน" });
+    }
+  
     const orderQuantity = quantity || 1;
     const totalPrice = price * orderQuantity;
-
+  
     try {
       await db.query(
         "INSERT INTO orders (table_id, menu_id, quantity, status, total_price, payment_status, session_id) VALUES (?, ?, ?, 'pending', ?, 'unpaid', ?)",
         [table_id, menu_id, orderQuantity, totalPrice, session_id]
       );
-
+  
       // 📡 แจ้งเตือน WebSocket
       io.emit("new_order", { table_id, menu_id, quantity: orderQuantity });
-
+  
       res.status(201).json({ success: true, message: "สั่งอาหารสำเร็จ!" });
     } catch (error) {
       console.error("❌ Error placing order:", error);
-      res
-        .status(500)
-        .json({ success: false, message: "เกิดข้อผิดพลาดในการสั่งอาหาร" });
+      res.status(500).json({ success: false, message: "เกิดข้อผิดพลาดในการสั่งอาหาร" });
     }
   });
+  
 
   // ✅ สั่งอาหารแบบหลายรายการ (Bulk Order)
   router.post("/bulk", async (req, res) => {
@@ -281,7 +287,7 @@ module.exports = (io) => {
           );
 
           // ✅ **อัปเดตจำนวนวัตถุดิบในหน่วยกิโลกรัม**
-          let newQuantity = (currentQuantity - amountToDeduct) / 1000; // แปลงกลับเป็น kg
+          let newQuantity = currentQuantity - amountToDeduct;
 
           await connection.query(
             "UPDATE ingredients SET quantity = ? WHERE ingredient_id = ?",
