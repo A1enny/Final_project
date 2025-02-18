@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const instance = axios.create({
-  baseURL: "http://localhost:3002/api", // ✅ ตรวจสอบว่าถูกต้อง ไม่มี "/api/api"
+  baseURL: "http://119.59.101.86:3002/api", // เปลี่ยน localhost เป็น IP จริง
   headers: { "Content-Type": "application/json" },
 });
 
