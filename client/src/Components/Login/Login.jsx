@@ -6,6 +6,7 @@ import axios from "../Api/axios";
 import Logo from "../../assets/Logo.png";
 import { FaUserShield, FaKey } from "react-icons/fa";
 import { AiOutlineSwapRight } from "react-icons/ai";
+import Swal from "sweetalert2";
 
 const Login = () => {
   const [loginUserName, setLoginUserName] = useState("");
@@ -15,50 +16,83 @@ const Login = () => {
 
   const loginUser = async (event) => {
     event.preventDefault();
-  
+
     if (!loginUserName || !loginPassword) {
-      alert("❌ กรุณากรอกชื่อผู้ใช้และรหัสผ่าน");
+      Swal.fire({
+        icon: "warning",
+        title: "⚠ กรุณากรอกชื่อผู้ใช้และรหัสผ่าน",
+        confirmButtonText: "ตกลง",
+      });
       return;
     }
-  
+
     try {
       setIsLoading(true);
-      const response = await axios.post("http://localhost:3002/api/users/login", {
+      const response = await axios.post("http://119.59.101.86:8000/Api_backend_maw/api/v1/login", {
         username: loginUserName,
         password: loginPassword,
       });
-      
+
       if (response.status === 200 && response.data.user) {
-        // ✅ บันทึก role ลง Local Storage อย่างถูกต้อง
         localStorage.setItem("user_id", response.data.user.id);
         localStorage.setItem("username", response.data.user.username);
-        localStorage.setItem("role", response.data.user.role); // ✅ แก้ตรงนี้
-  
+        localStorage.setItem("role", response.data.user.role);
         sessionStorage.setItem("isLoggedIn", "true");
-  
-        alert("✅ เข้าสู่ระบบสำเร็จ!");
-        navigate("/dashboard"); 
+
+        Swal.fire({
+          icon: "success",
+          title: "✅ เข้าสู่ระบบสำเร็จ!",
+          text: "กำลังนำคุณไปยังแดชบอร์ด...",
+          showConfirmButton: false,
+          timer: 2000,
+        });
+
+        setTimeout(() => {
+          navigate("/dashboard");
+        }, 2000);
       } else {
-        alert("❌ ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
+        Swal.fire({
+          icon: "error",
+          title: "❌ ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง",
+          confirmButtonText: "ลองอีกครั้ง",
+        });
       }
     } catch (error) {
       console.error("Login error:", error);
       if (error.response) {
         if (error.response.status === 401) {
-          alert("❌ ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
+          Swal.fire({
+            icon: "error",
+            title: "❌ ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง",
+            confirmButtonText: "ลองอีกครั้ง",
+          });
         } else if (error.response.status === 404) {
-          alert("⚠️ ไม่พบ API โปรดตรวจสอบ URL");
+          Swal.fire({
+            icon: "warning",
+            title: "⚠️ ไม่พบ API โปรดตรวจสอบ URL",
+            confirmButtonText: "ตกลง",
+          });
         } else {
-          alert("🚨 เกิดข้อผิดพลาดในการเข้าสู่ระบบ");
+          Swal.fire({
+            icon: "error",
+            title: "🚨 เกิดข้อผิดพลาดในการเข้าสู่ระบบ",
+            text: "โปรดลองอีกครั้งภายหลัง",
+            confirmButtonText: "ตกลง",
+          });
         }
       } else {
-        alert("⚠️ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์");
+        Swal.fire({
+          icon: "warning",
+          title: "⚠️ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์",
+          text: "โปรดตรวจสอบการเชื่อมต่ออินเทอร์เน็ต",
+          confirmButtonText: "ตกลง",
+        });
       }
     } finally {
       setIsLoading(false);
     }
   };
-  
+
   return (
     <div className="loginPage flex">
       <div className="logoContainer">
