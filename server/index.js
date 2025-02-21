@@ -625,5 +625,5 @@ app.get("/api/tables/available", async (req, res) => {
 
 // ✅ เปิดให้มือถือเข้าถึง API
 server.listen(3002, "0.0.0.0", () => {
-  console.log("🚀 Server running on http://192.168.1.44:3002");
+  console.log("🚀 Server running on http://192.168.1.44:");
 });
