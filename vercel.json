@@ -4,7 +4,7 @@
       "api/test.js": { "runtime": "nodejs18.x" }
     },
     "routes": [
-      { "src": "/api/(.*)", "dest": "/client/api/$1" }
+      { "src": "/api/(.*)", "dest": "/api/$1" }
     ]
   }
   
